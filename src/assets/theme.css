@@ -1,0 +1,57 @@
+:root {
+  --bg: #f4f6f8;
+  --text: #222;
+  --card: #fff;
+  --accent: #3b82f6;
+}
+
+[data-theme='dark'] {
+  --bg: #121212;
+  --text: #fff;
+  --card: #1e1e1e;
+  --accent: #60a5fa;
+}
+
+body, html, #app {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background 0.3s, color 0.3s;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card);
+  padding: 10px 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+nav button {
+  background: none;
+  border: none;
+  margin: 0 6px;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+nav button:hover {
+  color: var(--accent);
+}
+
+button {
+  border-radius: 8px;
+  padding: 6px 12px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+}
+button:hover {
+  transform: scale(1.05);
+  background: #2563eb;
+}

@@ -1,0 +1,9 @@
+{
+  "nombre": "Contasoft ERP",
+  "razon_social": "Contasoft Soluciones S.A.",
+  "direccion": "Av. Demo 1000",
+  "cuit": "30-12345678-9",
+  "telefono": "+54 11 0000-0000",
+  "email": "info@contasoft.example",
+  "logo": "/logo.png"
+}

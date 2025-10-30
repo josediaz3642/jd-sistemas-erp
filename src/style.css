@@ -1,0 +1,100 @@
+/* === Paleta de colores dinámicos === */
+:root {
+  --bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --text: #1f2937;
+  --accent: #3b82f6;
+  --border: #e5e7eb;
+  --success: #16a34a;
+  --error: #ef4444;
+  --shadow: rgba(0, 0, 0, 0.05);
+  --hover: #2563eb;
+}
+
+/* Modo oscuro */
+[data-theme='dark'] {
+  --bg: #0f172a;
+  --card-bg: #1e293b;
+  --text: #f8fafc;
+  --accent: #60a5fa;
+  --border: #334155;
+  --shadow: rgba(255, 255, 255, 0.05);
+  --hover: #93c5fd;
+}
+
+/* === Estilos base === */
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  transition: background 0.4s, color 0.4s;
+}
+
+/* Tarjetas y paneles */
+.stock-page, .facturacion-page, .cheques-page {
+  max-width: 900px;
+  margin: 40px auto;
+  background: var(--card-bg);
+  border-radius: 14px;
+  box-shadow: 0 4px 12px var(--shadow);
+  padding: 20px 30px;
+  transition: all 0.3s;
+}
+
+button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+button:hover {
+  background: var(--hover);
+  transform: translateY(-2px);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input, textarea, select {
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  transition: border-color 0.3s;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+th {
+  background: var(--bg);
+  font-weight: 600;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}

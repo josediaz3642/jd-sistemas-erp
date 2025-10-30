@@ -1,0 +1,19 @@
+[
+  {
+    "id": 1678886400000,
+    "clienteId": "C001",
+    "fecha": "2025-10-27",
+    "tipoComprobante": "A",
+    "condicionPago": "Contado",
+    "items": [
+      { "descripcion": "Servicio de Desarrollo", "cantidad": 1, "precioUnitario": 100000, "subtotal": 100000 }
+    ],
+    "subtotal": 100000,
+    "iva": 21000,
+    "total": 121000,
+    "puntoVenta": 1,
+    "cae": "9992025102712345678",
+    "caeVencimiento": "2025-11-06",
+    "estadoAFIP": "APROBADO"
+  }
+]
