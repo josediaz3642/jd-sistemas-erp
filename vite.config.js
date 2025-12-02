@@ -7,16 +7,16 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.png", "logo.png"],
       manifest: {
         name: "Contasoft ERP",
         short_name: "ERP",
-        theme_color: "#ffffff",
-        background_color: "#ffffff",
+        start_url: "/",
         display: "standalone",
+        background_color: "#ffffff",
+        lang: "es",
         icons: [
           {
-            src: "logo.png",
+            src: "/logo.png",
             sizes: "512x512",
             type: "image/png",
           },
@@ -31,7 +31,7 @@ export default defineConfig({
     },
   },
 
-  server: {
-    port: 5173,
+  build: {
+    outDir: "dist",
   },
 });
