@@ -1,100 +1,272 @@
-/* === Paleta de colores dinámicos === */
+/* === PALETA DE COLORES === */
 :root {
-  --bg: #f7f8fa;
-  --card-bg: #ffffff;
-  --text: #1f2937;
-  --accent: #3b82f6;
-  --border: #e5e7eb;
-  --success: #16a34a;
-  --error: #ef4444;
-  --shadow: rgba(0, 0, 0, 0.05);
-  --hover: #2563eb;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  
+  /* Modo Claro (Default) */
+  --bg-primary: #f4f7f6;       /* Fondo principal (gris muy claro) */
+  --bg-secondary: #ffffff;   /* Fondo de tarjetas y header */
+  --text-primary: #1a202c;     /* Texto principal (casi negro) */
+  --text-secondary: #4a5568;  /* Texto gris */
+  --border-color: #e2e8f0;    /* Bordes suaves */
+  --accent-primary: #3b82f6; /* Azul principal */
+  --accent-hover: #2563eb;   /* Azul más oscuro para hover */
+  --accent-light: #dbeafe;   /* Azul muy claro (para fondos de status) */
+  --success: #16a34a;        /* Verde */
+  --error: #dc2626;         /* Rojo */
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.07);
 }
 
-/* Modo oscuro */
+/* Modo Oscuro */
 [data-theme='dark'] {
-  --bg: #0f172a;
-  --card-bg: #1e293b;
-  --text: #f8fafc;
-  --accent: #60a5fa;
-  --border: #334155;
-  --shadow: rgba(255, 255, 255, 0.05);
-  --hover: #93c5fd;
+  --bg-primary: #0d1117;       /* Fondo (negro-azulado GitHub) */
+  --bg-secondary: #161b22;   /* Fondo de tarjetas */
+  --text-primary: #c9d1d9;     /* Texto principal (gris claro) */
+  --text-secondary: #8b949e;  /* Texto gris secundario */
+  --border-color: #30363d;    /* Bordes */
+  --accent-primary: #58a6ff; /* Azul principal (más brillante) */
+  --accent-hover: #79c0ff;   /* Azul hover */
+  --accent-light: #1f6feb26; /* Fondo azul transparente */
+  --success: #238636;
+  --error: #f85149;
+  --shadow-md: 0 0 transparent;
+  --shadow-lg: 0 0 transparent;
 }
 
-/* === Estilos base === */
+/* === ESTILOS BASE === */
+* {
+  box-sizing: border-box;
+}
+
 html, body, #app {
   height: 100%;
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', 'Segoe UI', sans-serif;
-  transition: background 0.4s, color 0.4s;
+  padding: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Tarjetas y paneles */
-.stock-page, .facturacion-page, .cheques-page {
-  max-width: 900px;
-  margin: 40px auto;
-  background: var(--card-bg);
-  border-radius: 14px;
-  box-shadow: 0 4px 12px var(--shadow);
-  padding: 20px 30px;
-  transition: all 0.3s;
+/* === HEADER (App.vue) === */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 60px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
 }
 
-button {
-  background: var(--accent);
-  color: #fff;
+.logo {
+  height: 32px;
+  width: auto;
+}
+
+.app-header nav {
+  display: flex;
+  gap: 8px;
+}
+
+.app-header .actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* === BOTONES === */
+.btn {
+  padding: 8px 16px;
   border: none;
-  padding: 8px 14px;
   border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-button:hover {
-  background: var(--hover);
+
+.btn-primary {
+  background-color: var(--accent-primary);
+  color: white;
+}
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-secondary {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+.btn-secondary:hover {
+  border-color: var(--text-secondary);
+}
+
+.btn-danger {
+  background-color: var(--error);
+  color: white;
+}
+.btn-danger:hover {
+  background-color: #b91c1c;
   transform: translateY(-2px);
 }
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+
+/* Botones del Header (App.vue) */
+.app-header nav button,
+.app-header .actions button {
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.app-header nav button:hover,
+.app-header .actions button:hover {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+.app-header nav button.router-link-exact-active { /* Asumiendo que App.vue añade esta clase */
+  color: var(--accent-primary);
 }
 
-input, textarea, select {
-  width: 100%;
-  padding: 10px;
-  margin: 6px 0;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--card-bg);
-  color: var(--text);
-  transition: border-color 0.3s;
+
+/* === FORMULARIOS (Inputs, Selects) === */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-input:focus, textarea:focus, select:focus {
+
+.form-group label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.form-input:focus,
+.form-select:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+/* === LAYOUT DE MÓDULOS (Card) === */
+.card {
+  max-width: 1000px;
+  margin: 32px auto;
+  padding: 24px 32px;
+  background-color: var(--bg-secondary);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+}
+
+.card h1 {
+  margin-top: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+.card h2 {
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  margin-top: 24px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* === TABLAS === */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto; /* Para responsividad en móvil */
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 20px;
-}
-th, td {
-  padding: 10px;
-  border-bottom: 1px solid var(--border);
-}
-th {
-  background: var(--bg);
-  font-weight: 600;
+  font-size: 14px;
 }
 
-a {
-  color: var(--accent);
-  text-decoration: none;
+th, td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
 }
-a:hover {
-  text-decoration: underline;
+
+thead th {
+  background-color: var(--bg-primary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Quitar borde de la última fila */
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr {
+  transition: background-color 0.15s ease;
+}
+tbody tr:hover {
+  background-color: var(--accent-light);
+}
+
+td .btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  margin-right: 6px;
+}
+
+/* === MENSAJES DE ESTADO === */
+.status-message {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(-10px);
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.status-message.success {
+  background-color: #dcfce7; /* Green 100 */
+  color: #15803d; /* Green 700 */
+  border: 1px solid #16a34a;
+}
+
+.status-message.error {
+  background-color: #fee2e2; /* Red 100 */
+  color: #b91c1c; /* Red 700 */
+  border: 1px solid var(--error);
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

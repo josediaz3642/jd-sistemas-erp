@@ -1,57 +1,164 @@
-/* src/styles/theme.css */
-
-/* 1. Variables Globales (Modo Claro por defecto) */
+/* === Paleta de colores dinámicos === */
 :root {
-  /* Colores de Fondo */
-  --color-bg-primary: #f8f9fa;     /* Fondo principal claro */
-  --color-bg-secondary: #ffffff;   /* Fondo de tarjetas/módulos */
-  --color-border: #dee2e6;         /* Bordes suaves */
-  
-  /* Colores de Texto y Elementos */
-  --color-text-primary: #212529;   /* Texto principal oscuro */
-  --color-text-secondary: #6c757d; /* Texto secundario/placeholder */
-  --color-accent: #42b983;         /* Color principal de Vue/Acento */
-  --color-error: #dc3545;
-  
-  /* Sombra suave para elevación */
-  --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-
-  /* Transiciones */
-  transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+  --bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --text: #1f2937;
+  --accent: #3b82f6;
+  --border: #e5e7eb;
+  --success: #16a34a;
+  --error: #ef4444;
+  --shadow: rgba(0, 0, 0, 0.05);
+  --hover: #2563eb;
 }
 
-/* 2. Variables para el Modo Oscuro */
-.theme-dark {
-  /* Colores de Fondo (Oscuros) */
-  --color-bg-primary: #121212;     /* Fondo principal muy oscuro */
-  --color-bg-secondary: #1e1e1e;   /* Fondo de tarjetas/módulos (un poco más claro) */
-  --color-border: #333333;         /* Bordes suaves y oscuros */
-  
-  /* Colores de Texto y Elementos (Claros) */
-  --color-text-primary: #e0e0e0;   /* Texto principal claro */
-  --color-text-secondary: #aaaaaa; /* Texto secundario/placeholder */
-  --color-accent: #6ee3af;         /* Acento ligeramente más brillante */
-  --color-error: #ff7f7f;
-  
-  /* Ajuste de Sombra (menos visible en oscuro) */
-  --shadow-lg: 0 4px 10px rgba(0, 0, 0, 0.4);
+/* Modo oscuro */
+[data-theme='dark'] {
+  --bg: #0f172a;
+  --card-bg: #1e293b;
+  --text: #f8fafc;
+  --accent: #60a5fa;
+  --border: #334155;
+  --shadow: rgba(255, 255, 255, 0.05);
+  --hover: #93c5fd;
 }
 
-/* 3. Estilos Globales Aplicando Variables */
-body, #app {
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  min-height: 100vh;
+/* === Estilos base === */
+html, body, #app {
+  height: 100%;
   margin: 0;
-  transition: all 0.3s ease-in-out; /* Transición suave en el cambio de tema */
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  transition: background 0.4s, color 0.4s;
 }
 
-/* Estilos para Tarjetas/Componentes (usando sombra y fondo secundario) */
-.card, .form-container, .data-table {
-  background-color: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-lg);
-  padding: 20px;
+/* Tarjetas y paneles (Estilos adaptados para ser más fluidos) */
+.card {
+  background: var(--card-bg);
+  border-radius: 14px;
+  box-shadow: 0 4px 12px var(--shadow);
+  padding: 20px 30px;
+  margin: 30px auto;
+  max-width: 900px;
+  width: 95%; /* Asegura que la tarjeta se adapte al ancho */
+  box-sizing: border-box;
+}
+
+button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+button:hover {
+  background: var(--hover);
+  transform: translateY(-2px);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* === Header y Navegación Responsive === */
+.app-header {
+  background: var(--card-bg);
+  color: var(--text);
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 4px var(--shadow);
+}
+.app-header .logo {
+  height: 40px;
+}
+.app-header nav {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto; /* Scroll horizontal si es necesario en móvil */
+  padding: 5px 0;
+}
+.app-header nav button {
+  background: none;
+  color: var(--text);
+  font-weight: 600;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  transition: background 0.3s;
+  flex-shrink: 0; /* No encoger botones */
+}
+.app-header nav button:hover {
+  background: var(--bg);
+  transform: none;
+}
+.app-header .actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Adaptación para dispositivos pequeños */
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .app-header nav {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .app-header .actions {
+    width: 100%;
+    justify-content: space-around;
+    margin-top: 10px;
+  }
+  .app-header .actions button {
+    flex-grow: 1;
+  }
+}
+
+/* Formularios base */
+.form-group label {
+  font-weight: 500;
+  display: block;
+  margin-bottom: 5px;
+}
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  box-sizing: border-box;
+}
+
+/* Estilos de botones de acción */
+.btn-primary {
+  background: var(--accent);
+}
+.btn-secondary {
+  background: #6b7280;
+}
+.btn-secondary:hover {
+  background: #4b5563;
+}
+.btn-delete {
+  background: var(--error);
+}
+.btn-delete:hover {
+  background: #dc2626;
+}
+.btn-save {
+  background: var(--success);
+}
+.btn-save:hover {
+  background: #15803d;
 }

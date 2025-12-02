@@ -1,30 +1,96 @@
 <template>
-  <div class="dashboard-page card">
+  <div class="dashboard">
     <h1>Dashboard Principal</h1>
-    <p>Bienvenido a <strong>Contasoft ERP</strong>. Selecciona un módulo del menú superior.</p>
+    <p>Bienvenido a <strong>Contasoft ERP</strong></p>
+
+    <!-- Accesos principales -->
+    <router-link to="/clientes">Clientes</router-link>
+<router-link to="/proveedores">Proveedores</router-link>
+<router-link to="/facturacion">Facturación</router-link>
+<router-link to="/cheques">Cheques</router-link>
+<router-link to="/stock">Stock</router-link>
+
+<!-- NUEVOS -->
+<router-link to="/dashboard-avanzado">Dashboard Avanzado</router-link>
+<router-link to="/resumen-clientes">Resumen Clientes</router-link>
+<router-link to="/resumen-proveedores">Resumen Proveedores</router-link>
+    
+
+    <!-- Accesos exclusivos admin -->
+    <div v-if="user?.rol === 'admin'" class="admin-panel">
+      <h3>Herramientas de Administración</h3>
+      <button @click="go('/mantenimiento')" class="btn admin">
+        Gestión de Usuarios
+      </button>
+    </div>
+
+    <!-- Cerrar sesión -->
+    <button class="btn logout" @click="logout">Cerrar sesión</button>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { getCurrentUser } from '@/services/auth';
+import { useRouter } from "vue-router";
+import { getCurrentUser, logoutUser } from "@/services/auth";
 
-const user = ref({});
-onMounted(() => {
-  user.value = getCurrentUser();
-});
+const router = useRouter();
+const user = getCurrentUser();
+
+function go(path) {
+  router.push(path);
+}
+
+function logout() {
+  logoutUser();
+  router.push("/login");
+}
 </script>
 
 <style scoped>
-.card {
-  background: var(--card-bg);
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  animation: fadeIn 0.4s ease-in-out;
+.dashboard {
+  max-width: 900px;
+  margin: auto;
+  padding: 25px;
+  text-align: center;
 }
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 15px;
+  margin: 25px 0;
+}
+
+.btn {
+  padding: 12px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #2980b9;
+}
+
+.special {
+  background: #8e44ad;
+}
+
+.admin-panel {
+  margin-top: 30px;
+  padding: 20px;
+  border-radius: 10px;
+  background: #f1f1f1;
+}
+
+.admin {
+  background: #27ae60;
+}
+
+.logout {
+  background: #c0392b;
+  margin-top: 20px;
 }
 </style>

@@ -1,52 +1,58 @@
 <template>
-  <div :data-theme="theme">
-    <header class="app-header">
-      <img src="/logo.png" alt="Logo" class="logo" />
-      <nav>
-        <button @click="go('dashboard')">Inicio</button>
-        <button @click="go('clientes')">Clientes</button>
-        <button @click="go('facturacion')">Facturación</button>
-        <button @click="go('cheques')">Cheques</button>
-        <button @click="go('stock')">Stock</button>
-        <button @click="go('mantenimiento')" v-if="userRol === 'admin' || userRol === 'gerente'">
-          Mantenimiento
-        </button>
-      </nav>
-      <div class="actions">
-        <button @click="toggleTheme">🌓 Tema</button>
-        <button v-if="user" @click="logout">Cerrar sesión</button>
-      </div>
-    </header>
+  <div>
+    <!-- NAVBAR SUPERIOR -->
+    <nav class="navbar">
+  <router-link to="/dashboard">Inicio</router-link>
+  <router-link to="/clientes">Clientes</router-link>
+  <router-link to="/proveedores">Proveedores</router-link>
+  <router-link to="/facturacion">Facturación</router-link>
+  <router-link to="/cheques">Cheques</router-link>
+  <router-link to="/stock">Stock</router-link>
 
+  <!-- NUEVOS MÓDULOS -->
+  <router-link to="/dashboard-avanzado">Dashboard Avanzado</router-link>
+  <router-link to="/resumen-clientes">Resumen Clientes</router-link>
+  <router-link to="/resumen-proveedores">Resumen Proveedores</router-link>
+
+  <router-link to="/mantenimiento">Mantenimiento</router-link>
+</nav>
+
+
+    <!-- CONTENIDO PRINCIPAL -->
     <main>
       <router-view />
     </main>
   </div>
 </template>
 
-<script setup>
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { getCurrentUser, logoutUser } from '@/services/auth';
+<script setup></script>
 
-const router = useRouter();
-const theme = ref(localStorage.getItem('theme') || 'light');
-const user = ref(getCurrentUser());
-const userRol = computed(() => user.value?.rol || 'usuario');
-
-function toggleTheme() {
-  theme.value = theme.value === 'light' ? 'dark' : 'light';
-  localStorage.setItem('theme', theme.value);
+<style>
+body {
+  margin: 0;
+  background: #f5f6f7;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-function logout() {
-  logoutUser();
-  router.push('/login');
+.navbar {
+  display: flex;
+  gap: 20px;
+  padding: 15px;
+  background: #ffffff;
+  border-bottom: 1px solid #ddd;
 }
 
-function go(path) {
-  router.push(`/${path}`);
+.navbar a {
+  text-decoration: none;
+  color: #333;
+  font-weight: bold;
 }
-</script>
 
-<style src="@/styles/theme.css"></style>
+.navbar a.router-link-active {
+  color: #007bff;
+}
+
+main {
+  padding: 20px;
+}
+</style>
