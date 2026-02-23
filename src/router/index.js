@@ -14,44 +14,41 @@ import Cheques from "@/views/Cheques.vue";
 import Mantenimiento from "@/views/Mantenimiento.vue";
 import DetalleFactura from "@/views/DetalleFactura.vue";
 import ClienteDetalle from "@/views/ClienteDetalle.vue";
-import Caja from "@/views/Caja.vue"; // 
+import Caja from "@/views/Caja.vue";
 import Ajustes from "@/views/Ajustes.vue";
 import NuevaCompra from "@/views/NuevaCompra.vue";
 import Reportes from "@/views/Reportes.vue";
 
 const routes = [
-  { path: "/login", component: Login },
-  { path: "/registro", component: Registro },
-  { path: "/", redirect: "/dashboard" },
-  { path: "/dashboard", component: Dashboard },
+  // La raíz ahora es el Login directamente para evitar rebotes
+  { path: "/", name: "LoginRoot", component: Login },
+  { path: "/login", name: "Login", component: Login },
+  { path: "/registro", name: "Registro", component: Registro },
+  
+  { path: "/dashboard", name: "Dashboard", component: Dashboard },
   { path: "/facturacion", component: Facturacion },
   { path: "/factura/nueva", component: FacturaCliente },
-  { path: "/facturacion/:id", component: DetalleFactura }, // Ya estaba, verificamos que el path sea correcto
-	{ path: "/ajustes", component: Ajustes },
-  { path: "/caja", component: Caja }, //   
-  { path: "/cheques", component: Cheques },
+  { path: "/facturacion/:id", component: DetalleFactura },
+  { path: "/ajustes", component: Ajustes },
+  { path: "/caja", component: Caja },
   { path: "/reportes", component: Reportes },
+  
   // CLIENTES
   { path: "/clientes", component: Clientes },
   { path: "/cliente/nuevo", component: DetalleCliente },  
-  { path: "/cliente/:id",component: ClienteDetalle},
+  { path: "/cliente/:id", component: ClienteDetalle },
 
-// STOCK
-{ path: "/stock", component: Stock },
-{ path: "/stock/nuevo", component: () => import("@/views/DetalleStock.vue") },
-{ path: "/stock/:id", component: () => import("@/views/DetalleStock.vue") },
+  // STOCK
+  { path: "/stock", component: Stock },
+  { path: "/stock/nuevo", component: () => import("@/views/DetalleStock.vue") },
+  { path: "/stock/:id", component: () => import("@/views/DetalleStock.vue") },
 
   // PROVEEDORES
   { path: "/proveedores", component: Proveedores },
   { path: "/proveedor/nuevo", component: DetalleProveedor },
   { path: "/proveedor/:id", component: DetalleProveedor },
-	{ path: "/compras/nueva", component: NuevaCompra },
-  // FACTURACIÓN
-  { path: "/facturacion", component: Facturacion },
-  { path: "/factura/nueva", component: FacturaCliente },
-{ path: "/facturacion/:id", component: DetalleFactura },
+  { path: "/compras/nueva", component: NuevaCompra },
 
-  // OTROS  
   { path: "/cheques", component: Cheques },
 
   // ADMIN
@@ -67,11 +64,25 @@ const router = createRouter({
   routes
 });
 
-// GUARDIA
+// GUARDIA CORREGIDA: Permite entrar a "/" y "/login" sin estar logueado
 router.beforeEach((to, from, next) => {
   const user = getCurrentUser();
-  if (to.path !== "/login" && !user) return next("/login");
-  if (to.meta?.role && !to.meta.role.includes(user.rol)) return next("/dashboard");
+  
+  // Si intenta ir a login o a la raíz, dejamos pasar
+  if (to.path === "/login" || to.path === "/") {
+    return next();
+  }
+
+  // Si no hay usuario y va a cualquier otra ruta, al login
+  if (!user) {
+    return next("/");
+  }
+
+  // Si hay reglas de rol
+  if (to.meta?.role && !to.meta.role.includes(user.rol)) {
+    return next("/dashboard");
+  }
+
   next();
 });
 

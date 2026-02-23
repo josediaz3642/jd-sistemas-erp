@@ -31,10 +31,9 @@ export function logoutUser() {
 // USUARIO ACTUAL
 // -------------------------------
 export function getCurrentUser() {
-    const data = localStorage.getItem("currentUser");
-    return data ? JSON.parse(data) : null;
+  const user = localStorage.getItem("contasoft_user_sesion");
+  return user ? JSON.parse(user) : null;
 }
-
 // -------------------------------
 // REGISTRO (Alta de nueva empresa/cliente)
 // -------------------------------
