@@ -34,6 +34,15 @@ export function getCurrentUser() {
   const user = localStorage.getItem("contasoft_user_sesion");
   return user ? JSON.parse(user) : null;
 }
+export function login(email, password) {
+  const users = JSON.parse(localStorage.getItem("contasoft_usuarios") || "[]");
+  const user = users.find(u => u.email === email && u.password === password);
+  if (user) {
+    localStorage.setItem("contasoft_user_sesion", JSON.stringify(user));
+    return user;
+  }
+  return null;
+}
 // -------------------------------
 // REGISTRO (Alta de nueva empresa/cliente)
 // -------------------------------
