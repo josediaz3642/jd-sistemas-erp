@@ -203,3 +203,14 @@ export function getMovimientosCaja() {
   // Unimos y ordenamos por fecha (más reciente primero)
   return [...ingresos, ...egresos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 }
+// --- FUNCIONES DE STOCK FALTANTES (Añadir a data.js) ---
+
+export function getStockById(id) {
+  const items = getStockItems();
+  return items.find(i => i.id == id) || null;
+}
+
+export function deleteStockItem(id) {
+  const items = getStockItems().filter(i => i.id != id);
+  saveWithTenant(STORAGE.stock, items);
+}
