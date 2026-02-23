@@ -56,12 +56,28 @@ function saveWithTenant(key, value) {
 }
 
 // --- EXPORTS DE DATOS ---
-export function initializeDataService() { 
-  if (!localStorage.getItem(STORAGE.usuarios)) {
-    localStorage.setItem(STORAGE.usuarios, JSON.stringify([{ 
-      id: 1, nombre: "Admin", email: "admin@admin.com", password: "1234", rol: "admin", empresaId: "emp_default" 
-    }]));
+export function initializeDataService() {
+  // 1. Crear el usuario base si no existe
+  const usuariosExistentes = JSON.parse(localStorage.getItem("contasoft_usuarios") || "[]");
+  
+  if (usuariosExistentes.length === 0) {
+    const adminUser = { 
+      id: 1, 
+      nombre: "Admin", 
+      email: "admin@admin.com", 
+      password: "1234", 
+      rol: "admin", 
+      empresaId: "emp_default" 
+    };
+    localStorage.setItem("contasoft_usuarios", JSON.stringify([adminUser]));
+    
+    // AUTO-LOGIN: Si no hay nadie logueado, logueamos al admin automáticamente
+    if (!localStorage.getItem("contasoft_user_sesion")) {
+        localStorage.setItem("contasoft_user_sesion", JSON.stringify(adminUser));
+    }
   }
+  
+  // ... resto de tu código de inicialización (clientes, stock, etc)
 }
 
 // Empresa
