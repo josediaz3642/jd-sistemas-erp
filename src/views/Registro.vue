@@ -1,94 +1,65 @@
 <template>
-  <div class="registro-page">
-    <h1>Crear Nuevo Usuario</h1>
+  <div class="container">
+    <div class="card-glass" style="max-width:480px; margin:auto;">
+      <h1>Registro</h1>
+      <p class="kv">Crea una cuenta de usuario</p>
 
-    <form @submit.prevent="registrar">
-      <input v-model="usuario" placeholder="Usuario" required />
-      <input v-model="nombre" placeholder="Nombre Completo" required />
-      <input v-model="clave" type="password" placeholder="Contraseña" required />
-      <input v-model="confirmarClave" type="password"
-             placeholder="Confirmar Contraseña" required />
+      <form @submit.prevent="onRegister" style="margin-top:12px;">
+        <input v-model="nombre" class="input" type="text" placeholder="Nombre completo" required />
+        <input v-model="email" class="input" type="email" placeholder="Email" required style="margin-top:8px;" />
+        <input v-model="password" class="input" type="password" placeholder="Contraseña" required style="margin-top:8px;" />
 
-      <button type="submit" class="btn">
-        Registrar
-      </button>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="btn" type="submit">Crear Cuenta</button>
+          <button class="btn secondary" type="button" @click="$router.push('/login')">Volver</button>
+        </div>
 
-      <p v-if="error" class="error">{{ error }}</p>
-      <p v-if="success" class="success">{{ success }}</p>
-    </form>
-
-    <a href="#" @click.prevent="goLogin">Volver a iniciar sesión</a>
+        <p v-if="msg" class="status-success" style="margin-top:10px;">{{ msg }}</p>
+        <p v-if="error" class="status-error" style="margin-top:10px;">{{ error }}</p>
+      </form>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
+import { saveUsuario, getUsuarios } from '@/services/data';
 import { useRouter } from 'vue-router';
-import { createUser, getCurrentUser } from '@/services/auth';
-
-const usuario = ref('');
-const nombre = ref('');
-const clave = ref('');
-const confirmarClave = ref('');
-const error = ref('');
-const success = ref('');
 
 const router = useRouter();
+const nombre = ref('');
+const email = ref('');
+const password = ref('');
+const error = ref('');
+const msg = ref('');
 
-async function registrar() {
-  error.value = "";
-  success.value = "";
+function onRegister() {
+  error.value = '';
+  msg.value = '';
 
-  // Solo admin puede crear
-  const current = getCurrentUser();
-  if (!current || current.rol !== 'admin') {
-    error.value = "Solo un administrador puede crear usuarios.";
+  // simple validations
+  if (!email.value || !password.value || !nombre.value) {
+    error.value = 'Completa todos los campos';
     return;
   }
 
-  if (clave.value !== confirmarClave.value) {
-    error.value = "Las contraseñas no coinciden.";
+  // check duplicate
+  const exists = getUsuarios().some(u => u.email === email.value);
+  if (exists) {
+    error.value = 'El email ya está registrado';
     return;
   }
 
-  try {
-    await createUser({
-      usuario: usuario.value,
-      nombre: nombre.value,
-      clave: clave.value
-    });
-
-    success.value = "Usuario creado exitosamente.";
-    setTimeout(() => router.push('/login'), 1500);
-
-  } catch (e) {
-    error.value = e.message;
-  }
-}
-
-function goLogin() {
-  router.push('/login');
+  const user = {
+    nombre: nombre.value,
+    email: email.value,
+    password: password.value,
+    rol: 'user'
+  };
+  saveUsuario(user);
+  msg.value = 'Usuario registrado. Redirigiendo a login...';
+  setTimeout(() => router.push('/login'), 900);
 }
 </script>
 
-<style scoped>
-.registro-page {
-  max-width: 400px;
-  margin: auto;
-  margin-top: 10vh;
-  text-align: center;
-}
-input {
-  width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 10px;
-}
-.error { color: red; }
-.success { color: green; }
-.btn {
-  padding: 10px;
-  width: 100%;
-  font-size: 1.1em;
-}
-</style>
+<style scoped></style>

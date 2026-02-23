@@ -1,241 +1,253 @@
 <template>
-  <div class="card clientes-page">
-    <h1>Gestión de Clientes (CRUD)</h1>
-    
-    <!-- Mensaje de Estado -->
-    <div v-if="statusMessage" class="status-message" :class="isError ? 'error' : 'success'">
-      {{ statusMessage }}
+  <div class="page">
+
+    <!-- HEADER -->
+    <div class="card-glass header">
+      <h1>Clientes</h1>
+      <button class="btn-primary" @click="nuevoCliente">
+        + Nuevo Cliente
+      </button>
     </div>
 
-    <!-- Formulario -->
-    <div class="form-container">
-      <h2>{{ currentCliente.id ? 'Editar Cliente' : 'Agregar Nuevo Cliente' }}</h2>
-      
-      <form @submit.prevent="saveClienteAction" class="form-grid-clientes">
-        <div class="form-group">
-          <label>Nombre</label>
-          <input class="form-input" v-model="currentCliente.nombre" placeholder="Nombre (Solo Letras)" @input="validateNombre" required />
-          <span v-if="errors.nombre" class="error-msg-inline">{{ errors.nombre }}</span>
-        </div>
-        
-        <div class="form-group">
-          <label>CUIT/CUIL/DNI</label>
-          <input class="form-input" v-model="currentCliente.cuit" placeholder="CUIT/CUIL/DNI (11 Números)" @input="validateCuit" required />
-          <span v-if="errors.cuit" class="error-msg-inline">{{ errors.cuit }}</span>
-        </div>
+    <!-- TABLA PRINCIPAL -->
+    <div class="card-glass">
+      <table v-if="clientes.length > 0">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Facturas</th>
+            <th>Total Facturado</th>
+            <th>Última Compra</th>
+          </tr>
+        </thead>
 
-        <div class="form-group">
-          <label>Email</label>
-          <input class="form-input" v-model="currentCliente.email" type="email" placeholder="Email (ejemplo@gmail.com)" @input="validateEmail" required />
-          <span v-if="errors.email" class="error-msg-inline">{{ errors.email }}</span>
-        </div>
+        <tbody>
+          <tr
+            v-for="c in clientes"
+            :key="c.id"
+            @click="verCliente(c.id)"
+            style="cursor:pointer"
+          >
+            <td>{{ c.nombre }}</td>
+            <td>{{ obtenerResumen(c.nombre).cantidad }}</td>
+            <td>${{ obtenerResumen(c.nombre).total }}</td>
+            <td>
+              {{
+                obtenerResumen(c.nombre).ultima
+                  ? new Date(
+                      obtenerResumen(c.nombre).ultima
+                    ).toLocaleDateString("es-AR")
+                  : "-"
+              }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-        <div class="form-group">
-          <label>Teléfono</label>
-          <input class="form-input" v-model="currentCliente.telefono" placeholder="Teléfono" />
-        </div>
-
-        <div class="form-group">
-          <label>Dirección</label>
-          <input class="form-input" v-model="currentCliente.direccion" placeholder="Dirección" />
-        </div>
-
-        <div class="form-group">
-          <label>Condición IVA</label>
-          <select class="form-select" v-model="currentCliente.condicionIVA">
-            <option value="CF">Consumidor Final</option>
-            <option value="RI">Responsable Inscripto</option>
-            <option value="MT">Monotributo</option>
-          </select>
-        </div>
-
-        <div class="form-actions-clientes">
-          <button type="submit" class="btn btn-primary" :disabled="!isFormValid">{{ currentCliente.id ? 'Actualizar' : 'Guardar' }}</button>
-          <button v-if="currentCliente.id" @click="cancelEdit" type="button" class="btn btn-secondary">Cancelar Edición</button>
-        </div>
-      </form>
+      <p v-else class="empty">
+        No hay clientes cargados
+      </p>
     </div>
 
-    <!-- Tabla de Clientes -->
-    <section>
-      <h2>Lista de Clientes</h2>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>CUIT</th>
-              <th>Email</th>
-              <th>Teléfono</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-             <tr v-if="clientes.length === 0">
-              <td colspan="5" style="text-align: center; color: var(--text-secondary);">No hay clientes registrados.</td>
-            </tr>
-            <tr v-for="cliente in clientes" :key="cliente.id">
-              <td>{{ cliente.nombre }}</td>
-              <td>{{ cliente.cuit }}</td>
-              <td>{{ cliente.email }}</td>
-              <td>{{ cliente.telefono }}</td>
-              <td>
-                <button @click="editCliente(cliente)" class="btn btn-secondary">Editar</button>
-                <button @click="confirmarEliminar(cliente.id)" class="btn btn-danger">Eliminar</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <!-- RANKING -->
+    <div class="card-glass ranking">
+      <h2>Top 5 Mejores Clientes</h2>
 
-    <!-- Modal de Confirmación -->
-    <div v-if="showDeleteConfirm" class="modal-overlay">
-      <div class="modal-content card">
-        <h2>Confirmar Eliminación</h2>
-        <p>¿Está seguro de que desea eliminar este cliente?</p>
-        <div class="modal-actions">
-          <button @click="deleteClienteAction" class="btn btn-danger">Sí, Eliminar</button>
-          <button @click="showDeleteConfirm = false" class="btn btn-secondary">Cancelar</button>
-        </div>
-      </div>
+      <table v-if="rankingClientes.length > 0">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Facturas</th>
+            <th>Total Facturado</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr v-for="c in rankingClientes" :key="c.nombre">
+            <td>{{ c.nombre }}</td>
+            <td>{{ c.cantidad }}</td>
+            <td>${{ c.total }}</td>
+            <td>
+              <span :class="estadoCliente(c.nombre)">
+                {{ estadoCliente(c.nombre).toUpperCase() }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p v-else class="empty">
+        No hay datos suficientes.
+      </p>
     </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-// Importa las funciones REPARADAS de data.js
-import { getClientes, saveCliente, deleteCliente } from '@/services/data'; 
+import { ref, onMounted, computed } from "vue";
+import { useRouter } from "vue-router";
+import { getClientes, getFacturas } from "@/services/data";
+
+const router = useRouter();
 
 const clientes = ref([]);
-const currentCliente = ref({ 
-  id: null, 
-  nombre: '', 
-  cuit: '', 
-  email: '', 
-  telefono: '', 
-  direccion: '', 
-  condicionIVA: 'CF' 
-});
-const errors = ref({ nombre: '', cuit: '', email: '' });
-
-// Para mensajes y modal (reemplaza alert/confirm)
-const statusMessage = ref('');
-const isError = ref(false);
-const showDeleteConfirm = ref(false);
-const itemToDeleteId = ref(null);
+const facturas = ref([]);
 
 onMounted(() => {
-  clientes.value = getClientes();
+  const dataClientes = getClientes();
+  const dataFacturas = getFacturas();
+
+  clientes.value = Array.isArray(dataClientes) ? dataClientes : [];
+  facturas.value = Array.isArray(dataFacturas) ? dataFacturas : [];
 });
 
-function showMessage(msg, error = false) {
-  statusMessage.value = msg;
-  isError.value = error;
-  setTimeout(() => { statusMessage.value = ''; }, 3000);
+function nuevoCliente() {
+  router.push("/cliente/nuevo");
 }
 
-// LÓGICA DE VALIDACIÓN (Sin cambios)
-const validateNombre = () => { /* ... */ errors.value.nombre = /^[a-zA-Z\s]*$/.test(currentCliente.value.nombre) ? '' : 'Solo letras y espacios.'; };
-const validateCuit = () => { 
-  let value = currentCliente.value.cuit.replace(/[^0-9]/g, ''); 
-  if (value.length > 11) value = value.slice(0, 11);
-  currentCliente.value.cuit = value;
-  errors.value.cuit = value.length !== 11 ? 'Debe tener 11 números.' : '';
-};
-const validateEmail = () => { /* ... */ errors.value.email = /^[^@]+@[^@]+\.[^@]+$/.test(currentCliente.value.email) ? '' : 'Email no válido.'; };
+function verCliente(id) {
+  router.push(`/cliente/${id}`);
+}
 
-const isFormValid = computed(() => {
-  return !errors.value.nombre && !errors.value.cuit && !errors.value.email &&
-         currentCliente.value.nombre && currentCliente.value.cuit.length === 11 && currentCliente.value.email;
+function obtenerResumen(clienteNombre) {
+  const facturasCliente = facturas.value.filter(
+    f => f.cliente === clienteNombre
+  );
+
+  const total = facturasCliente.reduce(
+    (acc, f) => acc + f.total,
+    0
+  );
+
+  const ultima =
+    facturasCliente.length > 0
+      ? [...facturasCliente].sort(
+          (a, b) => new Date(b.fecha) - new Date(a.fecha)
+        )[0].fecha
+      : null;
+
+  return {
+    cantidad: facturasCliente.length,
+    total,
+    ultima
+  };
+}
+function estadoCliente(clienteNombre) {
+  const facturasCliente = facturas.value
+    .filter(f => f.cliente === clienteNombre)
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+  if (facturasCliente.length === 0) return "inactivo";
+
+  const ultimaFecha = new Date(facturasCliente[0].fecha);
+  const hoy = new Date();
+
+  const diferenciaDias =
+    (hoy - ultimaFecha) / (1000 * 60 * 60 * 24);
+
+  if (diferenciaDias <= 30) return "activo";
+  if (diferenciaDias <= 60) return "medio";
+
+  return "inactivo";
+}
+
+/* =========================
+   RANKING CLIENTES
+========================= */
+
+const rankingClientes = computed(() => {
+  const mapa = {};
+
+  facturas.value.forEach(f => {
+    if (!mapa[f.cliente]) {
+      mapa[f.cliente] = {
+        nombre: f.cliente,
+        total: 0,
+        cantidad: 0
+      };
+    }
+
+    mapa[f.cliente].total += f.total;
+    mapa[f.cliente].cantidad += 1;
+  });
+
+  return Object.values(mapa)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
 });
-
-// LÓGICA CRUD (Actualizada)
-const saveClienteAction = () => {
-  if (!isFormValid.value) {
-    showMessage('Por favor, corrige los errores del formulario.', true);
-    return;
-  }
-  
-  saveCliente({...currentCliente.value}); // Usa la función REPARADA
-  clientes.value = getClientes(); // Recargar
-  showMessage(currentCliente.value.id ? 'Cliente actualizado.' : 'Cliente guardado.', false);
-  cancelEdit();
-};
-
-const editCliente = (cliente) => { 
-  currentCliente.value = {...cliente}; 
-  errors.value = { nombre: '', cuit: '', email: '' }; 
-  window.scrollTo(0, 0);
-};
-
-const cancelEdit = () => { 
-  currentCliente.value = { id: null, nombre: '', cuit: '', email: '', telefono: '', direccion: '', condicionIVA: 'CF' }; 
-  errors.value = { nombre: '', cuit: '', email: '' };
-};
-
-function confirmarEliminar(id) {
-  itemToDeleteId.value = id;
-  showDeleteConfirm.value = true;
-}
-
-const deleteClienteAction = () => {
-  deleteCliente(itemToDeleteId.value); // Usa la función NUEVA
-  clientes.value = getClientes();
-  showMessage('Cliente eliminado.', false);
-  showDeleteConfirm.value = false;
-  itemToDeleteId.value = null;
-};
 </script>
 
 <style scoped>
-/* (Hereda estilos de style.css) */
-.form-grid-clientes {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 24px;
-}
-
-.form-group {
+.page {
+  padding: 20px;
   display: flex;
   flex-direction: column;
+  gap: 20px;
 }
 
-.error-msg-inline {
-  color: var(--error);
-  font-size: 0.875rem;
-  margin-top: 4px;
-}
-
-.form-actions-clientes {
-  grid-column: 1 / -1;
+.header {
   display: flex;
-  gap: 12px;
-  margin-top: 10px;
-}
-
-/* Estilos de Modal (reemplaza confirm()) */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  z-index: 1000;
 }
-.modal-content {
-  max-width: 450px;
-  padding: 30px;
+
+.card-glass {
+  backdrop-filter: blur(15px);
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 20px;
 }
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
+
+.btn-primary {
+  background: rgba(0, 123, 255, 0.85);
+  border: none;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
 }
+
+.btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px;
+  text-align: left;
+}
+
+.empty {
+  text-align: center;
+  opacity: 0.7;
+}
+.ranking {
+  margin-top: 25px;
+}
+.activo {
+  color: #51cf66;
+  font-weight: bold;
+}
+
+.medio {
+  color: #fcc419;
+  font-weight: bold;
+}
+
+.inactivo {
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
 </style>

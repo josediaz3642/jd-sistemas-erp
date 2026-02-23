@@ -1,198 +1,109 @@
 <template>
-  <div class="card">
-    <h1>Facturación</h1>
+  <div class="facturacion-container">
+    <header class="page-header">
+      <div>
+        <h2>Historial de Facturación</h2>
+        <p class="subtitle">Gestiona y visualiza tus comprobantes emitidos.</p>
+      </div>
+      <button @click="$router.push('/factura/nueva')" class="btn-nueva">+ Nueva Factura</button>
+    </header>
 
-    <!-- Mensaje -->
-    <p v-if="mensaje" class="msg">{{ mensaje }}</p>
-
-    <!-- CLIENTE -->
-    <label>Seleccionar Cliente</label>
-    <select v-model="factura.clienteId">
-      <option disabled value="">-- Seleccionar --</option>
-      <option v-for="c in clientes" :key="c.id" :value="c.id">
-        {{ c.nombre }} - {{ c.cuit }}
-      </option>
-    </select>
-
-    <!-- ITEMS -->
-    <h3>Items</h3>
-
-    <div class="item-row">
-      <select v-model="nuevoItem.productoId">
-        <option disabled value="">Producto…</option>
-        <option v-for="p in stock" :key="p.id" :value="p.id">
-          {{ p.descripcion }} - ${{ p.precio }}
-        </option>
+    <div class="filters-bar glass-card">
+      <input v-model="filtroBusqueda" type="text" placeholder="Buscar por cliente o número..." class="input-search">
+      <select v-model="filtroEstado" class="input-select">
+        <option value="">Todos los estados</option>
+        <option value="EMITIDA">EMITIDA</option>
+        <option value="ANULADA">ANULADA</option>
       </select>
-
-      <input type="number" v-model.number="nuevoItem.cantidad" placeholder="Cantidad" />
-      <button @click="agregarItem">Agregar</button>
     </div>
 
-    <table class="tabla">
-      <thead>
-        <tr>
-          <th>Producto</th>
-          <th>Cant.</th>
-          <th>Precio</th>
-          <th>Total</th>
-          <th></th>
-        </tr>
-      </thead>
-
-      <tbody>
-        <tr v-for="(it, index) in items" :key="index">
-          <td>{{ it.descripcion }}</td>
-          <td>{{ it.cantidad }}</td>
-          <td>{{ it.precio }}</td>
-          <td>{{ it.total }}</td>
-          <td><button @click="borrarItem(index)" class="btn-delete">X</button></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <h2>Total: ${{ totalFactura }}</h2>
-
-    <button class="btn-primary" @click="guardarFactura">Guardar Factura</button>
-    <button class="btn-secondary" @click="exportarPDF">Exportar PDF</button>
+    <div class="table-container glass-card">
+      <table class="table-moderna">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Número</th>
+            <th>Cliente</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th class="text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="f in facturasFiltradas" :key="f.id">
+            <td>{{ f.fecha ? new Date(f.fecha).toLocaleDateString() : 'S/F' }}</td>
+            <td class="font-mono">#{{ String(f.puntoVenta || 0).padStart(4, '0') }}-{{ String(f.numero || 0).padStart(8, '0') }}</td>
+            <td>{{ getNombreCliente(f.clienteId) }}</td>
+            <td class="font-bold">${{ (f.total || 0).toLocaleString() }}</td>
+            <td>
+              <span :class="['status-badge', (f.estado || 'EMITIDA').toLowerCase()]">{{ f.estado || 'EMITIDA' }}</span>
+            </td>
+            <td class="text-right">
+              <button @click="$router.push('/facturacion/' + f.id)" class="btn-action">
+                👁️ Ver / Imprimir
+              </button>
+            </td>
+          </tr>
+          <tr v-if="facturasFiltradas.length === 0">
+            <td colspan="6" class="text-center">No se encontraron facturas.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import { ref, onMounted, computed } from 'vue';
+import { getFacturas, getClientes } from '@/services/data';
 
-import {
-  getClientes,
-  getStockItems,
-  saveFactura,
-  getEmpresa
-} from "@/services/data";
-
-const clientes = ref([]);
-const stock = ref([]);
-const items = ref([]);
-const mensaje = ref("");
-
-const factura = ref({
-  clienteId: "",
-  fecha: new Date().toISOString().split("T")[0]
-});
-
-const nuevoItem = ref({
-  productoId: "",
-  cantidad: 1
-});
+const listaFacturas = ref([]);
+const listaClientes = ref([]);
+const filtroBusqueda = ref('');
+const filtroEstado = ref('');
 
 onMounted(() => {
-  clientes.value = getClientes();
-  stock.value = getStockItems();
+  listaClientes.value = getClientes() || [];
+  listaFacturas.value = getFacturas() || [];
 });
 
-/* -------------------------------
-   AGREGAR ITEM
---------------------------------*/
-function agregarItem() {
-  const prod = stock.value.find(p => p.id === nuevoItem.value.productoId);
-  if (!prod) return;
-
-  items.value.push({
-    productoId: prod.id,
-    descripcion: prod.descripcion,
-    cantidad: nuevoItem.value.cantidad,
-    precio: prod.precio,
-    total: prod.precio * nuevoItem.value.cantidad
-  });
-
-  nuevoItem.value = { productoId: "", cantidad: 1 };
+function getNombreCliente(id) {
+  if (!id) return 'Sin Cliente';
+  const c = listaClientes.value.find(x => x.id === id);
+  return c ? c.nombre : 'Cliente no encontrado';
 }
 
-/* -------------------------------
-   BORRAR ITEM
---------------------------------*/
-function borrarItem(i) {
-  items.value.splice(i, 1);
-}
+const facturasFiltradas = computed(() => {
+  if (!listaFacturas.value) return [];
 
-/* -------------------------------
-   TOTAL FACTURA
---------------------------------*/
-const totalFactura = computed(() =>
-  items.value.reduce((acc, it) => acc + it.total, 0)
-);
+  return listaFacturas.value.filter(f => {
+    // Blindaje contra undefined:
+    const nombreCliente = getNombreCliente(f.clienteId).toLowerCase();
+    const numeroFactura = String(f.numero || '').toLowerCase();
+    const busqueda = filtroBusqueda.value.toLowerCase();
 
-/* -------------------------------
-   GUARDAR FACTURA
---------------------------------*/
-function guardarFactura() {
-  if (!factura.value.clienteId) {
-    mensaje.value = "Debe seleccionar un cliente";
-    return;
-  }
-
-  const dataGuardar = {
-    ...factura.value,
-    items: items.value,
-    total: totalFactura.value
-  };
-
-  saveFactura(dataGuardar);
-  mensaje.value = "Factura guardada correctamente";
-
-  setTimeout(() => (mensaje.value = ""), 3000);
-}
-
-/* -------------------------------
-   EXPORTAR PDF
---------------------------------*/
-function exportarPDF() {
-  const doc = new jsPDF();
-
-  const cliente = clientes.value.find(c => c.id === factura.value.clienteId);
-  const empresa = getEmpresa();
-
-  doc.setFontSize(14);
-  doc.text(empresa.nombre, 10, 10);
-  doc.text("Factura - Cliente: " + cliente.nombre, 10, 20);
-
-  autoTable(doc, {
-    head: [["Producto", "Cant.", "Precio", "Total"]],
-    body: items.value.map(it => [
-      it.descripcion,
-      it.cantidad,
-      it.precio,
-      it.total
-    ])
-  });
-
-  doc.text("TOTAL: $" + totalFactura.value, 10, doc.lastAutoTable.finalY + 15);
-
-  doc.save("factura.pdf");
-}
+    const cumpleBusqueda = nombreCliente.includes(busqueda) || numeroFactura.includes(busqueda);
+    const cumpleEstado = filtroEstado.value === '' || f.estado === filtroEstado.value;
+    
+    return cumpleBusqueda && cumpleEstado;
+  }).sort((a, b) => b.id - a.id);
+});
 </script>
 
 <style scoped>
-.card {
-  padding: 20px;
-  background: #fff;
-}
-.msg {
-  color: green;
-  font-weight: bold;
-}
-.tabla {
-  width: 100%;
-  margin-top: 15px;
-  border-collapse: collapse;
-}
-.tabla th,
-.tabla td {
-  border: 1px solid #ccc;
-  padding: 6px;
-}
-.btn-delete {
-  background: red;
-  color: white;
-}
+.facturacion-container { padding: 20px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+.btn-nueva { background: #2563eb; color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.filters-bar { display: flex; gap: 15px; padding: 15px !important; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+.input-search { flex: 1; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; }
+.input-select { padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; width: 200px; }
+.table-container { overflow-x: auto; background: white; border-radius: 12px; }
+.table-moderna { width: 100%; border-collapse: collapse; }
+.table-moderna th { text-align: left; padding: 15px; color: #64748b; font-size: 0.85rem; border-bottom: 2px solid #f1f5f9; }
+.table-moderna td { padding: 15px; border-bottom: 1px solid #f1f5f9; }
+.status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+.status-badge.emitida { background: #dcfce7; color: #166534; }
+.status-badge.anulada { background: #fee2e2; color: #991b1b; }
+.btn-action { background: white; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.font-mono { font-family: monospace; color: #475569; font-weight: bold; }
 </style>

@@ -1,128 +1,105 @@
-// =====================================
-//  AUTH LOCALSTORAGE (SIN FIREBASE)
-// =====================================
+// src/services/auth.js
+import { getUsuarios, saveUsuario, deleteUser as deleteUsuarioLS } from "./data";
 
-import { ref } from "vue";
-import { getUsuarios, saveUsuario } from "@/services/data";
-
-// ------------------------
-// Sesión reactiva
-// ------------------------
-const currentUserRef = ref(null);
-
-(function restoreSession() {
-  try {
-    const raw = localStorage.getItem("erp_user_session");
-    if (raw) currentUserRef.value = JSON.parse(raw);
-  } catch {}
-})();
-
-function saveSession(user) {
-  currentUserRef.value = user;
-  localStorage.setItem("erp_user_session", JSON.stringify(user));
-}
-
-export function logoutUser() {
-  currentUserRef.value = null;
-  localStorage.removeItem("erp_user_session");
-}
-
-export function getCurrentUser() {
-  return currentUserRef.value;
-}
-
-// ------------------------
-// Crear ADMIN si no existe
-// ------------------------
-(function ensureAdminExists() {
-  let usuarios = getUsuarios();
-  const existe = usuarios.find(u => u.usuario === "admin");
-
-  if (!existe) {
-    const admin = {
-      id: Date.now(),
-      nombre: "Administrador",
-      usuario: "admin",
-      clave: "admin123",
-      rol: "admin"
-    };
-    usuarios.push(admin);
-    localStorage.setItem("usuarios", JSON.stringify(usuarios));
-    console.log("⚡ Usuario admin creado por defecto");
-  }
-})();
-
-// ------------------------
+// -------------------------------
 // LOGIN
-// ------------------------
-export async function loginUser(usuario, clave) {
-  const usuarios = getUsuarios();
-  const user = usuarios.find(
-    u => u.usuario === usuario && u.clave === clave
-  );
+// -------------------------------
+export function loginUser(email, password) {
+    const usuarios = getUsuarios(); // Trae todos para validar credenciales
 
-  if (!user) return null;
+    const user = usuarios.find(
+        u => u.email === email && u.password === password
+    );
 
-  saveSession(user);
-  return user;
+    if (!user) {
+        throw new Error("Credenciales inválidas o usuario inexistente");
+    }
+
+    // Guardamos la sesión del usuario
+    localStorage.setItem("currentUser", JSON.stringify(user));
+    return user;
 }
 
-// ------------------------
-// CRUD SOLO ADMIN
-// ------------------------
-export async function createUser({ usuario, nombre, clave }) {
-  const current = getCurrentUser();
-  if (!current || current.rol !== "admin") {
-    throw new Error("Solo un administrador puede crear usuarios.");
-  }
-
-  let usuarios = getUsuarios();
-
-  if (usuarios.find(u => u.usuario === usuario)) {
-    throw new Error("El usuario ya existe.");
-  }
-
-  const newUser = {
-    id: Date.now(),
-    usuario,
-    nombre,
-    clave,
-    rol: "usuario"
-  };
-
-  usuarios.push(newUser);
-  localStorage.setItem("usuarios", JSON.stringify(usuarios));
-
-  return newUser;
+// -------------------------------
+// LOGOUT
+// -------------------------------
+export function logoutUser() {
+    localStorage.removeItem("currentUser");
 }
 
-export async function listUsers() {
-  const current = getCurrentUser();
-  if (!current || current.rol !== "admin")
-    throw new Error("No autorizado.");
-
-  return getUsuarios();
+// -------------------------------
+// USUARIO ACTUAL
+// -------------------------------
+export function getCurrentUser() {
+    const data = localStorage.getItem("currentUser");
+    return data ? JSON.parse(data) : null;
 }
 
-export async function updateUser(id, patch) {
-  const current = getCurrentUser();
-  if (!current || current.rol !== "admin")
-    throw new Error("No autorizado.");
+// -------------------------------
+// REGISTRO (Alta de nueva empresa/cliente)
+// -------------------------------
+export function createUser(data) {
+    const usuarios = getUsuarios();
 
-  let usuarios = getUsuarios();
-  const index = usuarios.findIndex(u => u.id === id);
+    if (usuarios.some(u => u.email === data.email)) {
+        throw new Error("Ya existe un usuario con ese email");
+    }
 
-  if (index === -1) throw new Error("Usuario no encontrado.");
+    // Si el que crea es un ADMIN del sistema, quizás quiera asignar empresaId.
+    // Si es un registro nuevo, generamos un empresaId nuevo (un nuevo cliente del SaaS).
+    const nuevoEmpresaId = data.empresaId || "emp_" + Date.now(); 
 
-  usuarios[index] = { ...usuarios[index], ...patch };
-  localStorage.setItem("usuarios", JSON.stringify(usuarios));
+    const nuevo = {
+        id: Date.now(),
+        nombre: data.nombre,
+        email: data.email,
+        password: data.password, // Nota: En producción usar hashing (bcrypt)
+        rol: data.rol || "admin", 
+        empresaId: nuevoEmpresaId 
+    };
+
+    saveUsuario(nuevo);
+    return nuevo;
 }
 
-export async function deleteUser(id) {
-  const current = getCurrentUser();
-  if (!current || current.rol !== "admin")
-    throw new Error("No autorizado.");
+// -------------------------------
+// LISTAR USUARIOS (Filtrado por empresa)
+// -------------------------------
+export function listUsers() {
+    const currentUser = getCurrentUser();
+    const todos = getUsuarios();
 
-  let usuarios = getUsuarios().filter(u => u.id !== id);
-  localStorage.setItem("usuarios", JSON.stringify(usuarios));
+    if (!currentUser) return [];
+
+    // Si eres "superadmin" podrías ver todos, 
+    // pero para el cliente que alquila, solo mostramos sus empleados:
+    return todos.filter(u => u.empresaId === currentUser.empresaId);
+}
+
+// -------------------------------
+// EDITAR
+// -------------------------------
+export function updateUser(user) {
+    const currentUser = getCurrentUser();
+    
+    // Validamos que el usuario que se edita pertenece a la misma empresa
+    // para evitar que alguien edite usuarios ajenos por consola
+    if (user.empresaId !== currentUser.empresaId && currentUser.rol !== 'superadmin') {
+        throw new Error("No tienes permisos para modificar este usuario");
+    }
+
+    saveUsuario(user);
+}
+
+// -------------------------------
+// ELIMINAR
+// -------------------------------
+export function deleteUser(id) {
+    // Aquí podrías agregar una lógica para que un usuario no se borre a sí mismo
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.id === id) {
+        throw new Error("No puedes eliminar tu propio usuario");
+    }
+    
+    deleteUsuarioLS(id);
 }

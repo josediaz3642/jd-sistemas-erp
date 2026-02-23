@@ -1,0 +1,23 @@
+@media print {
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #factura-print,
+  #factura-print * {
+    visibility: visible !important;
+  }
+
+  #factura-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

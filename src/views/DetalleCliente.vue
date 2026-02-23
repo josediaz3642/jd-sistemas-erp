@@ -1,155 +1,174 @@
 <template>
-  <div class="card detalle-page">
-    <h1>Detalle de Cliente</h1>
+  <div class="page">
+    <div class="card-glass header">
+      <h1>
+        {{ isNuevo ? "Nuevo Cliente" : "Editar Cliente" }}
+      </h1>
+    </div>
 
-    <div v-if="!cliente" class="alert error">Cliente no encontrado.</div>
+    <div class="card-glass">
+      <form @submit.prevent="guardar">
+        <div class="field">
+          <label>Nombre</label>
+          <input v-model="cliente.nombre" required />
+        </div>
 
-    <div v-else>
-      <div class="cliente-header">
-        <h2>{{ cliente.nombre }}</h2>
-        <p>CUIT: {{ cliente.cuit }}</p>
-        <p>Dirección: {{ cliente.direccion }}</p>
-        <p>IVA: {{ cliente.condicionIVA }}</p>
-      </div>
+        <div class="field">
+          <label>Email</label>
+          <input v-model="cliente.email" type="email" />
+        </div>
 
-      <div class="acciones">
-        <button class="btn btn-primary" @click="irFacturar">Crear Factura</button>
-        <button class="btn" @click="exportAllFacturas">Exportar facturas (PDF/JSON)</button>
-      </div>
+        <div class="field">
+          <label>Teléfono</label>
+          <input v-model="cliente.telefono" />
+        </div>
 
-      <section class="lista">
-        <h3>Facturas</h3>
-        <table v-if="facturas.length" class="table">
-          <thead><tr><th>Tipo</th><th>N°</th><th>Fecha</th><th>Total</th><th>Acciones</th></tr></thead>
-          <tbody>
-            <tr v-for="f in facturas" :key="f.id">
-              <td>{{ f.tipo }}</td>
-              <td>{{ f.puntoVenta }}-{{ f.numero }}</td>
-              <td>{{ f.fecha }}</td>
-              <td>{{ formatMoney(f.total) }}</td>
-              <td>
-                <button class="btn btn-sm" @click="verFactura(f)">Ver</button>
-                <button class="btn btn-sm" @click="exportFactura(f)">Exportar</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-else class="empty">No hay facturas para este cliente.</p>
-      </section>
+        <div class="actions">
+          <button type="submit" class="btn-primary">
+            Guardar
+          </button>
 
-      <section class="lista">
-        <h3>Cheques</h3>
-        <table v-if="cheques.length" class="table">
-          <thead><tr><th>Tipo</th><th>N°</th><th>Fecha</th><th>Monto</th></tr></thead>
-          <tbody>
-            <tr v-for="c in cheques" :key="c.id">
-              <td>{{ c.tipo || 'N/A' }}</td>
-              <td>{{ c.numero || '-' }}</td>
-              <td>{{ c.fecha || '-' }}</td>
-              <td>{{ formatMoney(c.monto || 0) }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-else class="empty">No hay cheques asociados.</p>
-      </section>
+          <button type="button" class="btn" @click="volver">
+            Cancelar
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { getClienteById, getFacturasByCliente, getChequesByCliente } from '@/services/data';
-
-// util: intentar usar jspdf si está disponible
-let jsPDFLib = null;
-try { jsPDFLib = (await import('jspdf')).jsPDF; } catch(e){ jsPDFLib = null; }
+import { onMounted, ref, computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import {
+  getClienteById,
+  saveCliente
+} from "@/services/data";
 
 const route = useRoute();
 const router = useRouter();
 
-const cliente = ref(null);
-const facturas = ref([]);
-const cheques = ref([]);
-
-function formatMoney(v) {
-  return `$${Number(v || 0).toFixed(2)}`;
-}
-
-onMounted(() => {
-  const id = Number(route.params.id);
-  cliente.value = getClienteById(id);
-  if (!cliente.value) return;
-  facturas.value = getFacturasByCliente(id) || [];
-  cheques.value = getChequesByCliente(id) || [];
+const cliente = ref({
+  nombre: "",
+  email: "",
+  telefono: ""
 });
 
-function verFactura(f) {
-  // navegar a facturación en modo edición (si tenés ruta)
-  router.push({ path: '/facturacion', query: { editId: f.id } });
-}
+const isNuevo = computed(() => route.params.id === "nuevo");
 
-function irFacturar() {
-  router.push({ path: '/facturacion', query: { clienteId: cliente.value.id } });
-}
-
-function exportFactura(f) {
-  // intenta pdf, si no disponible descarga JSON
-  if (jsPDFLib) {
-    try {
-      const doc = new jsPDFLib();
-      doc.setFontSize(14);
-      doc.text(`Factura ${f.tipo} ${f.puntoVenta}-${f.numero}`, 14, 20);
-      doc.setFontSize(10);
-      doc.text(`Cliente: ${cliente.value.nombre}`, 14, 28);
-      doc.text(`Fecha: ${f.fecha}`, 14, 34);
-
-      const rows = (f.items || []).map(i => [i.cantidad, i.descripcion, i.precio.toFixed(2), (i.cantidad*i.precio).toFixed(2)]);
-      // si autoTable no existe, volcamos manual
-      if (typeof doc.autoTable === 'function') {
-        doc.autoTable({ startY: 42, head: [['Cant', 'Desc', 'P.Unit', 'Subtotal']], body: rows });
-      } else {
-        let y = 42;
-        rows.forEach(r => {
-          doc.text(r.join(' | '), 14, y);
-          y += 6;
-        });
-      }
-      doc.save(`Factura_${f.puntoVenta}_${f.numero}.pdf`);
-      return;
-    } catch(e) {
-      console.warn('Error generando PDF, descargando JSON...', e);
+onMounted(() => {
+  if (!isNuevo.value) {
+    const data = getClienteById(route.params.id);
+    if (data) {
+      cliente.value = { ...data };
     }
   }
+});
 
-  // fallback: descargar JSON
-  const blob = new Blob([JSON.stringify(f, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Factura_${f.puntoVenta}_${f.numero}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+function guardar() {
+  saveCliente(cliente.value);
+  router.push("/clientes");
 }
 
-function exportAllFacturas() {
-  const data = facturas.value;
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Facturas_Cliente_${cliente.value.id}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+function volver() {
+  router.push("/clientes");
 }
 </script>
 
 <style scoped>
-.detalle-page { max-width: 980px; margin: 20px auto; padding: 20px; }
-.cliente-header { margin-bottom: 12px; }
-.lista { margin-top: 18px; }
-.table { width: 100%; border-collapse: collapse; }
-.table th, .table td { padding: 8px; border-bottom: 1px solid var(--border-color); text-align: left; }
-.empty { color: var(--text-secondary); }
-.acciones { display:flex; gap:10px; margin-bottom:10px; }
+.page {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+}
+
+.card-glass {
+  backdrop-filter: blur(15px);
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 24px;
+  max-width: 500px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+label {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+
+input {
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  background: rgba(255, 255, 255, 0.25);
+  color: inherit;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.btn-primary {
+  background: rgba(0, 123, 255, 0.85);
+  border: none;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.card-glass {
+  background: white; /* Cambiamos de transparent a blanco sólido para legibilidad */
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 24px;
+  max-width: 500px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+label {
+  font-size: 0.9rem;
+  font-weight: 600; /* Más negrita para leer mejor */
+  color: #475569; /* Gris oscuro legible */
+  margin-bottom: 6px;
+}
+
+input {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1; /* Borde definido */
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 1rem;
+}
+
+input:focus {
+  border-color: #2563eb;
+  background: white;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
 </style>

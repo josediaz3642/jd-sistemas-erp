@@ -1,13 +1,12 @@
-import { createApp } from 'vue'
-import App from './App.vue'
-import router from './router'
+// main.js
+import { createApp } from "vue";
+import App from "./App.vue";
+import router from "./router/index.js";
+import "./assets/glass.css";
 
-// Importar el CSS principal (¡SOLO UNO!)
-import './style.css' 
+import { initializeDataService } from "./services/data.js";
+initializeDataService();
 
-// Importar y ejecutar la semilla de datos (opcional, data.js ya lo hace)
-// import { seedData } from './services/data'
-// seedData(); // No es necesario si data.js ya lo auto-ejecuta
-
-createApp(App).use(router).mount('#app')
-
+createApp(App)
+  .use(router)
+  .mount("#app");

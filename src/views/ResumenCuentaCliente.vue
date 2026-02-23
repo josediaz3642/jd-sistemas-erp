@@ -1,34 +1,88 @@
 <template>
   <div class="container">
-    <h1>Resumen de Cuenta - Clientes</h1>
+    <h1>Resumen del Cliente</h1>
 
-    <div class="grid">
-      <div class="box">Total Facturas: {{ resumen.facturas }}</div>
-      <div class="box">Total Pagos: {{ resumen.pagos }}</div>
-      <div class="box">Items Comprados: {{ resumen.items }}</div>
-      <div class="box">Cheques Recibidos: {{ resumen.cheques }}</div>
+    <div class="card">
+      <p><strong>Facturas:</strong> {{ facturas.length }}</p>
+      <p><strong>Pagos:</strong> {{ pagos.length }}</p>
     </div>
+
+    <h2>Items vendidos</h2>
+    <ul>
+      <li v-for="item in items" :key="item.producto">
+        {{ item.producto }} — {{ item.cantidad }}
+      </li>
+    </ul>
+
+    <h2>Datos del Cliente</h2>
+    <div v-if="cliente" class="card">
+      <p><strong>Nombre:</strong> {{ cliente.nombre }}</p>
+      <p><strong>CUIT:</strong> {{ cliente.cuit }}</p>
+      <p><strong>Dirección:</strong> {{ cliente.direccion }}</p>
+
+      <div class="buttons">
+        <router-link :to="`/cliente/${cliente.id}`" class="btn">Volver</router-link>
+      </div>
+    </div>
+
+    <p v-else>Cargando datos...</p>
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import { useRoute } from "vue-router";
+import {
+  getFacturasCliente,
+  getPagosCliente,
+  getItemsVendidosCliente,
+  getClientes
+} from "@/services/data";
 
-const resumen = ref({
-  facturas: 0,
-  pagos: 0,
-  items: 0,
-  cheques: 0,
+const route = useRoute();
+const id = Number(route.params.id);
+
+// Datos
+const cliente = ref(null);
+const facturas = ref([]);
+const pagos = ref([]);
+const items = ref([]);
+
+onMounted(() => {
+  const lista = getClientes();
+  cliente.value = lista.find(c => c.id === id) || null;
+
+  facturas.value = getFacturasCliente(id);
+  pagos.value = getPagosCliente(id);
+  items.value = getItemsVendidosCliente(id);
 });
 </script>
 
-<style>
-.container { padding: 20px; }
-.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-.box {
-  background: #ffffff;
+<style scoped>
+.container {
+  max-width: 900px;
+  margin: auto;
+}
+
+.card {
   padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background: #ffffff50;
+  border: 1px solid #ffffff40;
+  backdrop-filter: blur(8px);
+  border-radius: 10px;
+}
+
+.buttons {
+  margin-top: 20px;
+  display: flex;
+  gap: 15px;
+}
+
+.btn {
+  padding: 10px 15px;
+  text-decoration: none;
+  background: #007bff;
+  color: white;
+  border-radius: 6px;
 }
 </style>
