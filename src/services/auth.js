@@ -1,113 +1,52 @@
 // src/services/auth.js
-import { getUsuarios, saveUsuario, deleteUser as deleteUsuarioLS } from "./data";
+import * as dataService from "./data";
 
-// -------------------------------
-// LOGIN
-// -------------------------------
-export function loginUser(email, password) {
-    const usuarios = getUsuarios(); // Trae todos para validar credenciales
-
-    const user = usuarios.find(
-        u => u.email === email && u.password === password
-    );
-
-    if (!user) {
-        throw new Error("Credenciales inválidas o usuario inexistente");
-    }
-
-    // Guardamos la sesión del usuario
-    localStorage.setItem("currentUser", JSON.stringify(user));
-    return user;
-}
-
-// -------------------------------
-// LOGOUT
-// -------------------------------
-export function logoutUser() {
-    localStorage.removeItem("currentUser");
-}
-
-// -------------------------------
 // USUARIO ACTUAL
-// -------------------------------
 export function getCurrentUser() {
   const user = localStorage.getItem("contasoft_user_sesion");
   return user ? JSON.parse(user) : null;
 }
-export function login(email, password) {
-  const users = JSON.parse(localStorage.getItem("contasoft_usuarios") || "[]");
-  const user = users.find(u => u.email === email && u.password === password);
+
+// LOGIN
+export async function login(email, password) {
+  const usuarios = await dataService.getUsuarios();
+  const user = usuarios.find(u => u.email === email && u.password === password);
+  
   if (user) {
     localStorage.setItem("contasoft_user_sesion", JSON.stringify(user));
     return user;
   }
-  return null;
-}
-// -------------------------------
-// REGISTRO (Alta de nueva empresa/cliente)
-// -------------------------------
-export function createUser(data) {
-    const usuarios = getUsuarios();
-
-    if (usuarios.some(u => u.email === data.email)) {
-        throw new Error("Ya existe un usuario con ese email");
-    }
-
-    // Si el que crea es un ADMIN del sistema, quizás quiera asignar empresaId.
-    // Si es un registro nuevo, generamos un empresaId nuevo (un nuevo cliente del SaaS).
-    const nuevoEmpresaId = data.empresaId || "emp_" + Date.now(); 
-
-    const nuevo = {
-        id: Date.now(),
-        nombre: data.nombre,
-        email: data.email,
-        password: data.password, // Nota: En producción usar hashing (bcrypt)
-        rol: data.rol || "admin", 
-        empresaId: nuevoEmpresaId 
-    };
-
-    saveUsuario(nuevo);
-    return nuevo;
+  throw new Error("Credenciales inválidas");
 }
 
-// -------------------------------
-// LISTAR USUARIOS (Filtrado por empresa)
-// -------------------------------
-export function listUsers() {
-    const currentUser = getCurrentUser();
-    const todos = getUsuarios();
-
-    if (!currentUser) return [];
-
-    // Si eres "superadmin" podrías ver todos, 
-    // pero para el cliente que alquila, solo mostramos sus empleados:
-    return todos.filter(u => u.empresaId === currentUser.empresaId);
+// LOGOUT
+export function logoutUser() {
+  localStorage.removeItem("contasoft_user_sesion");
 }
 
-// -------------------------------
-// EDITAR
-// -------------------------------
-export function updateUser(user) {
-    const currentUser = getCurrentUser();
-    
-    // Validamos que el usuario que se edita pertenece a la misma empresa
-    // para evitar que alguien edite usuarios ajenos por consola
-    if (user.empresaId !== currentUser.empresaId && currentUser.rol !== 'superadmin') {
-        throw new Error("No tienes permisos para modificar este usuario");
-    }
+// REGISTRO
+export async function registerUser(userData) {
+  const usuarios = await dataService.getUsuarios();
+  if (usuarios.some(u => u.email === userData.email)) {
+    throw new Error("El email ya está registrado");
+  }
 
-    saveUsuario(user);
+  const nuevo = {
+    nombre: userData.nombre,
+    email: userData.email,
+    password: userData.password, 
+    rol: "admin",
+    empresa_id: userData.empresaId || "emp_" + Date.now()
+  };
+
+  return await dataService.saveUsuario(nuevo);
 }
 
-// -------------------------------
 // ELIMINAR
-// -------------------------------
-export function deleteUser(id) {
-    // Aquí podrías agregar una lógica para que un usuario no se borre a sí mismo
-    const currentUser = getCurrentUser();
-    if (currentUser && currentUser.id === id) {
-        throw new Error("No puedes eliminar tu propio usuario");
-    }
-    
-    deleteUsuarioLS(id);
+export async function deleteUser(id) {
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.id === id) {
+    throw new Error("No puedes eliminar tu propio usuario");
+  }
+  return await dataService.deleteUser(id);
 }

@@ -1,7 +1,5 @@
 <template>
   <div class="page">
-
-    <!-- HEADER -->
     <div class="card-glass header">
       <h1>Clientes</h1>
       <button class="btn-primary" @click="nuevoCliente">
@@ -9,9 +7,10 @@
       </button>
     </div>
 
-    <!-- TABLA PRINCIPAL -->
     <div class="card-glass">
-      <table v-if="clientes.length > 0">
+      <div v-if="loading" class="empty">Cargando clientes desde la nube...</div>
+      
+      <table v-else-if="clientes.length > 0">
         <thead>
           <tr>
             <th>Cliente</th>
@@ -20,7 +19,6 @@
             <th>Última Compra</th>
           </tr>
         </thead>
-
         <tbody>
           <tr
             v-for="c in clientes"
@@ -29,14 +27,12 @@
             style="cursor:pointer"
           >
             <td>{{ c.nombre }}</td>
-            <td>{{ obtenerResumen(c.nombre).cantidad }}</td>
-            <td>${{ obtenerResumen(c.nombre).total }}</td>
+            <td>{{ obtenerResumen(c.id, c.nombre).cantidad }}</td>
+            <td>${{ obtenerResumen(c.id, c.nombre).total.toLocaleString() }}</td>
             <td>
               {{
-                obtenerResumen(c.nombre).ultima
-                  ? new Date(
-                      obtenerResumen(c.nombre).ultima
-                    ).toLocaleDateString("es-AR")
+                obtenerResumen(c.id, c.nombre).ultima
+                  ? new Date(obtenerResumen(c.id, c.nombre).ultima).toLocaleDateString("es-AR")
                   : "-"
               }}
             </td>
@@ -44,12 +40,9 @@
         </tbody>
       </table>
 
-      <p v-else class="empty">
-        No hay clientes cargados
-      </p>
+      <p v-else class="empty">No hay clientes cargados en la base de datos.</p>
     </div>
 
-    <!-- RANKING -->
     <div class="card-glass ranking">
       <h2>Top 5 Mejores Clientes</h2>
 
@@ -62,26 +55,21 @@
             <th>Estado</th>
           </tr>
         </thead>
-
         <tbody>
           <tr v-for="c in rankingClientes" :key="c.nombre">
             <td>{{ c.nombre }}</td>
             <td>{{ c.cantidad }}</td>
-            <td>${{ c.total }}</td>
+            <td>${{ c.total.toLocaleString() }}</td>
             <td>
-              <span :class="estadoCliente(c.nombre)">
-                {{ estadoCliente(c.nombre).toUpperCase() }}
+              <span :class="estadoCliente(c.nombre, c.id)">
+                {{ estadoCliente(c.nombre, c.id).toUpperCase() }}
               </span>
             </td>
           </tr>
         </tbody>
       </table>
-
-      <p v-else class="empty">
-        No hay datos suficientes.
-      </p>
+      <p v-else class="empty">No hay datos de facturación suficientes.</p>
     </div>
-
   </div>
 </template>
 
@@ -91,16 +79,25 @@ import { useRouter } from "vue-router";
 import { getClientes, getFacturas } from "@/services/data";
 
 const router = useRouter();
-
 const clientes = ref([]);
 const facturas = ref([]);
+const loading = ref(true);
 
-onMounted(() => {
-  const dataClientes = getClientes();
-  const dataFacturas = getFacturas();
+onMounted(async () => {
+  try {
+    // Llamadas asíncronas a la nube
+    const [dataClientes, dataFacturas] = await Promise.all([
+      getClientes(),
+      getFacturas()
+    ]);
 
-  clientes.value = Array.isArray(dataClientes) ? dataClientes : [];
-  facturas.value = Array.isArray(dataFacturas) ? dataFacturas : [];
+    clientes.value = dataClientes || [];
+    facturas.value = dataFacturas || [];
+  } catch (error) {
+    console.error("Error al cargar clientes:", error);
+  } finally {
+    loading.value = false;
+  }
 });
 
 function nuevoCliente() {
@@ -111,22 +108,19 @@ function verCliente(id) {
   router.push(`/cliente/${id}`);
 }
 
-function obtenerResumen(clienteNombre) {
+// Modificada para buscar por cliente_id o nombre (compatibilidad)
+function obtenerResumen(clienteId, clienteNombre) {
   const facturasCliente = facturas.value.filter(
-    f => f.cliente === clienteNombre
+    f => f.cliente_id === clienteId || f.cliente === clienteNombre
   );
 
-  const total = facturasCliente.reduce(
-    (acc, f) => acc + f.total,
-    0
+  const total = facturasCliente.reduce((acc, f) => acc + Number(f.total), 0);
+
+  const facturasOrdenadas = [...facturasCliente].sort(
+    (a, b) => new Date(b.fecha) - new Date(a.fecha)
   );
 
-  const ultima =
-    facturasCliente.length > 0
-      ? [...facturasCliente].sort(
-          (a, b) => new Date(b.fecha) - new Date(a.fecha)
-        )[0].fecha
-      : null;
+  const ultima = facturasOrdenadas.length > 0 ? facturasOrdenadas[0].fecha : null;
 
   return {
     cantidad: facturasCliente.length,
@@ -134,43 +128,37 @@ function obtenerResumen(clienteNombre) {
     ultima
   };
 }
-function estadoCliente(clienteNombre) {
-  const facturasCliente = facturas.value
-    .filter(f => f.cliente === clienteNombre)
-    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
-  if (facturasCliente.length === 0) return "inactivo";
+function estadoCliente(clienteNombre, clienteId) {
+  const res = obtenerResumen(clienteId, clienteNombre);
+  if (res.cantidad === 0) return "inactivo";
 
-  const ultimaFecha = new Date(facturasCliente[0].fecha);
+  const ultimaFecha = new Date(res.ultima);
   const hoy = new Date();
-
-  const diferenciaDias =
-    (hoy - ultimaFecha) / (1000 * 60 * 60 * 24);
+  const diferenciaDias = (hoy - ultimaFecha) / (1000 * 60 * 60 * 24);
 
   if (diferenciaDias <= 30) return "activo";
   if (diferenciaDias <= 60) return "medio";
-
   return "inactivo";
 }
 
-/* =========================
-   RANKING CLIENTES
-========================= */
-
+/* RANKING CLIENTES */
 const rankingClientes = computed(() => {
   const mapa = {};
 
   facturas.value.forEach(f => {
-    if (!mapa[f.cliente]) {
-      mapa[f.cliente] = {
-        nombre: f.cliente,
+    // Usamos el nombre para el mapa del ranking visual
+    const key = f.cliente || 'Desconocido';
+    if (!mapa[key]) {
+      mapa[key] = {
+        nombre: key,
+        id: f.cliente_id,
         total: 0,
         cantidad: 0
       };
     }
-
-    mapa[f.cliente].total += f.total;
-    mapa[f.cliente].cantidad += 1;
+    mapa[key].total += Number(f.total);
+    mapa[key].cantidad += 1;
   });
 
   return Object.values(mapa)
@@ -180,74 +168,15 @@ const rankingClientes = computed(() => {
 </script>
 
 <style scoped>
-.page {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-glass {
-  backdrop-filter: blur(15px);
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  padding: 20px;
-}
-
-.btn-primary {
-  background: rgba(0, 123, 255, 0.85);
-  border: none;
-  color: white;
-  padding: 10px 16px;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-.btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  padding: 6px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  padding: 10px;
-  text-align: left;
-}
-
-.empty {
-  text-align: center;
-  opacity: 0.7;
-}
-.ranking {
-  margin-top: 25px;
-}
-.activo {
-  color: #51cf66;
-  font-weight: bold;
-}
-
-.medio {
-  color: #fcc419;
-  font-weight: bold;
-}
-
-.inactivo {
-  color: #ff6b6b;
-  font-weight: bold;
-}
-
+/* Tus estilos se mantienen iguales */
+.page { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.header { display: flex; justify-content: space-between; align-items: center; }
+.card-glass { backdrop-filter: blur(15px); background: rgba(255, 255, 255, 0.15); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.25); padding: 20px; }
+.btn-primary { background: rgba(0, 123, 255, 0.85); border: none; color: white; padding: 10px 16px; border-radius: 10px; cursor: pointer; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px; text-align: left; }
+.empty { text-align: center; opacity: 0.7; padding: 20px; }
+.activo { color: #51cf66; font-weight: bold; }
+.medio { color: #fcc419; font-weight: bold; }
+.inactivo { color: #ff6b6b; font-weight: bold; }
 </style>

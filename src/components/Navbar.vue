@@ -9,6 +9,7 @@
         <a @click.prevent="go('/proveedores')" :class="{ active: isActive('/proveedores') }">Proveedores</a>
         <a @click.prevent="go('/facturacion')" :class="{ active: isActive('/facturacion') }">Facturación</a>
         <a @click.prevent="go('/stock')" :class="{ active: isActive('/stock') }">Stock</a>
+	 <a @click.prevent="go('/Mantenimiento')" :class="{ active: isActive('/Mantenimiento') }">Stock</a>
         <a @click.prevent="go('/cheques')" :class="{ active: isActive('/cheques') }">Cheques</a>
       </div>
     </div>

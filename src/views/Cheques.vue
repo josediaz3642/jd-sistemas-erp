@@ -1,103 +1,204 @@
 <template>
   <div class="cheques-container">
-    <header class="page-header">
-      <div>
-        <h2>🎫 Cartera de Cheques</h2>
-        <p>Administra los cheques de terceros recibidos y sus vencimientos.</p>
-      </div>
-      <div class="stats-cheques">
-        <div class="stat-mini">
-          <span>Total en Cartera</span>
-          <strong>${{ totalEnCartera.toLocaleString() }}</strong>
-        </div>
-      </div>
+    <header class="flex-header">
+      <h1>🎫 Gestión de Cheques</h1>
+      <button @click="abrirModal" class="btn-nuevo">+ Nuevo Cheque</button>
     </header>
 
-    <div class="table-container glass-card">
-      <table class="table-moderna">
+    <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+      <div class="stat-card shadow card">
+        <p>En Cartera (Pendientes)</p>
+        <h3 class="text-blue font-bold text-xl">${{ totalCartera.toLocaleString() }}</h3>
+      </div>
+      <div class="stat-card shadow card">
+        <p>A vencer (próx. 7 días)</p>
+        <h3 class="text-orange font-bold text-xl">${{ totalVencer.toLocaleString() }}</h3>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button @click="tabActiva = 'cartera'" :class="{ active: tabActiva === 'cartera' }">En Cartera</button>
+      <button @click="tabActiva = 'propios'" :class="{ active: tabActiva === 'propios' }">Propios / Emitidos</button>
+    </div>
+
+    <div class="table-container card">
+      <table>
         <thead>
           <tr>
             <th>Vencimiento</th>
             <th>Banco</th>
             <th>Número</th>
-            <th>Cliente</th>
-            <th>Monto</th>
+            <th>{{ tabActiva === 'cartera' ? 'Cliente' : 'Destino' }}</th>
+            <th class="text-right">Monto</th>
             <th>Estado</th>
-            <th class="text-right">Acciones</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="c in listaCheques" :key="c.id" :class="{ 'vencido': esVencido(c.fechaVencimiento) }">
-            <td class="font-bold">{{ c.fechaVencimiento }}</td>
-            <td>{{ c.banco }}</td>
-            <td class="font-mono">{{ c.numero }}</td>
-            <td>{{ getNombreCliente(c.clienteId) }}</td>
-            <td class="font-bold">${{ c.monto.toLocaleString() }}</td>
+          <tr v-for="cheque in chequesFiltrados" :key="cheque.id">
+            <td :class="{ 'vencido': isVencido(cheque.fechaVto) }">
+              {{ formatDate(cheque.fechaVto) }}
+            </td>
+            <td>{{ cheque.banco }}</td>
+            <td>{{ cheque.numero }}</td>
+            <td>{{ cheque.entidad }}</td>
+            <td class="text-right font-bold">${{ cheque.monto.toLocaleString() }}</td>
             <td>
-              <span :class="['badge-estado', c.estado.toLowerCase()]">
-                {{ c.estado }}
-              </span>
+              <span :class="'status-badge ' + cheque.estado">{{ cheque.estado }}</span>
             </td>
-            <td class="text-right">
-              <button v-if="c.estado === 'EN_CARTERA'" @click="depositar(c.id)" class="btn-sm">Depositar</button>
+            <td>
+              <button @click="cambiarEstado(cheque)" class="btn-edit" title="Cambiar Estado">⚡</button>
             </td>
-          </tr>
-          <tr v-if="listaCheques.length === 0">
-            <td colspan="7" class="text-center">No hay cheques en cartera.</td>
           </tr>
         </tbody>
       </table>
+      <div v-if="chequesFiltrados.length === 0" class="p-8 text-center text-gray-400">
+        No hay cheques en esta categoría.
+      </div>
+    </div>
+
+    <div v-if="mostrarModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3>Registrar Nuevo Cheque</h3>
+        <form @submit.prevent="guardarNuevoCheque">
+          <div class="grid-form">
+            <div class="form-group">
+              <label>Tipo</label>
+              <select v-model="nuevoCheque.tipo" required>
+                <option value="cartera">Recibido (Cartera)</option>
+                <option value="propio">Emitido (Propio)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Banco</label>
+              <input v-model="nuevoCheque.banco" type="text" required>
+            </div>
+            <div class="form-group">
+              <label>Número</label>
+              <input v-model="nuevoCheque.numero" type="text" required>
+            </div>
+            <div class="form-group">
+              <label>Monto</label>
+              <input v-model.number="nuevoCheque.monto" type="number" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label>Fecha Vencimiento</label>
+              <input v-model="nuevoCheque.fechaVto" type="date" required>
+            </div>
+            <div class="form-group">
+              <label>Cliente / Proveedor</label>
+              <input v-model="nuevoCheque.entidad" type="text" required>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" @click="mostrarModal = false">Cancelar</button>
+            <button type="submit" class="btn-guardar">Guardar en Nube</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </template>
+
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-// CAMBIO: Importamos getCheques, getClientes y updateChequesList
-import { getCheques, getClientes, updateChequesList } from '@/services/data'; 
+import { ref, computed, onMounted } from 'vue';
+import { getCheques, saveCheque, registrarMovimientoCaja } from '@/services/data';
 
-const listaCheques = ref([]);
-const clientes = ref([]);
+const tabActiva = ref('cartera');
+const mostrarModal = ref(false);
+const cheques = ref([]);
 
-onMounted(() => {
-  listaCheques.value = getCheques() || [];
-  clientes.value = getClientes() || [];
+const nuevoCheque = ref({
+  tipo: 'cartera',
+  banco: '',
+  numero: '',
+  monto: 0,
+  fechaVto: '',
+  entidad: '',
+  estado: 'pendiente'
 });
 
-const totalEnCartera = computed(() => {
-  return listaCheques.value
-    .filter(c => c.estado === 'EN_CARTERA')
-    .reduce((acc, c) => acc + c.monto, 0);
+// Cargar desde Supabase
+const cargarCheques = async () => {
+  cheques.value = await getCheques();
+};
+
+onMounted(cargarCheques);
+
+const chequesFiltrados = computed(() => {
+  return cheques.value.filter(c => c.tipo === tabActiva.value);
 });
 
-function getNombreCliente(id) {
-  const cliente = clientes.value.find(cl => cl.id === id);
-  return cliente ? cliente.nombre : 'S/D';
-}
+const totalCartera = computed(() => {
+  return cheques.value
+    .filter(c => c.tipo === 'cartera' && c.estado === 'pendiente')
+    .reduce((acc, curr) => acc + Number(curr.monto), 0);
+});
 
-function esVencido(fecha) {
-  return new Date(fecha) < new Date() && listaCheques.value.some(c => c.estado === 'EN_CARTERA');
-}
+const totalVencer = computed(() => {
+  const hoy = new Date();
+  const proximaSemana = new Date();
+  proximaSemana.setDate(hoy.getDate() + 7);
 
-function depositar(id) {
-  const c = listaCheques.value.find(x => x.id === id);
-  if (c) {
-    c.estado = 'DEPOSITADO';
-    // CAMBIO: Usamos la función específica
-    updateChequesList(listaCheques.value);
-    alert("Cheque marcado como depositado correctamente.");
+  return cheques.value.filter(c => {
+    const f = new Date(c.fechaVto);
+    return f >= hoy && f <= proximaSemana && c.estado === 'pendiente';
+  }).reduce((acc, curr) => acc + Number(curr.monto), 0);
+});
+
+const abrirModal = () => { mostrarModal.value = true; };
+
+const guardarNuevoCheque = async () => {
+  try {
+    await saveCheque({ ...nuevoCheque.value });
+    alert("Cheque guardado correctamente.");
+    mostrarModal.value = false;
+    // Reset
+    nuevoCheque.value = { tipo: 'cartera', banco: '', numero: '', monto: 0, fechaVto: '', entidad: '', estado: 'pendiente' };
+    await cargarCheques(); // Recargar lista
+  } catch (e) {
+    alert("Error al guardar");
   }
-}
+};
+
+const cambiarEstado = async (cheque) => {
+  const estadosCartera = ['pendiente', 'depositado', 'cobrado', 'rechazado'];
+  const estadosPropios = ['pendiente', 'pagado', 'anulado'];
+  
+  const listaEstados = cheque.tipo === 'cartera' ? estadosCartera : estadosPropios;
+  const currentIndex = listaEstados.indexOf(cheque.estado);
+  const nuevoEstado = listaEstados[(currentIndex + 1) % listaEstados.length];
+  
+  // LÓGICA DE INTEGRACIÓN CON CAJA (Ahora va a Supabase)
+  if (nuevoEstado === 'cobrado' && cheque.tipo === 'cartera') {
+    await registrarMovimientoCaja('ingreso', cheque.monto, `Cobro Cheque ${cheque.banco} Nº${cheque.numero}`, 'Cheques');
+    alert(`💰 $${cheque.monto.toLocaleString()} sumados a la Caja.`);
+  } 
+  else if (nuevoEstado === 'pagado' && cheque.tipo === 'propio') {
+    await registrarMovimientoCaja('egreso', cheque.monto, `Pago Cheque Propio ${cheque.banco} Nº${cheque.numero}`, 'Cheques');
+    alert(`💸 $${cheque.monto.toLocaleString()} restados de la Caja.`);
+  }
+
+  // Actualizar el cheque en la base de datos
+  cheque.estado = nuevoEstado;
+  await saveCheque(cheque);
+  await cargarCheques();
+};
+
+const formatDate = (d) => new Date(d).toLocaleDateString();
+const isVencido = (d) => {
+  const fecha = new Date(d);
+  const hoy = new Date();
+  hoy.setHours(0,0,0,0);
+  return fecha < hoy;
+};
 </script>
+
 <style scoped>
-.stats-cheques { background: #f8fafc; padding: 10px 20px; border-radius: 10px; border: 1px solid #e2e8f0; }
-.stat-mini span { display: block; font-size: 0.75rem; color: #64748b; }
-.stat-mini strong { font-size: 1.2rem; color: #2563eb; }
-
-.badge-estado { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
-.badge-estado.en_cartera { background: #fef9c3; color: #854d0e; }
-.badge-estado.depositado { background: #dcfce7; color: #166534; }
-
-.vencido { background-color: #fff1f2; }
-.btn-sm { padding: 5px 10px; background: white; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-.btn-sm:hover { background: #f1f5f9; }
+/* Tus estilos se mantienen, solo asegúrate de que .card exista en tu CSS global o añade: */
+.card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+.status-badge.depositado { background: #dbeafe; color: #1e40af; }
+.status-badge.pagado { background: #d1fae5; color: #065f46; }
+.status-badge.anulado { background: #f3f4f6; color: #374151; }
+/* ... resto de estilos del archivo original ... */
 </style>

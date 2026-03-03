@@ -74,7 +74,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getEmpresa, saveEmpresa } from '@/services/data'; // Cambiamos saveWithTenant por saveEmpresa
+import { getEmpresa, saveEmpresa } from '@/services/data';
 
 const empresa = ref({
   nombre: '',
@@ -87,10 +87,10 @@ const empresa = ref({
   proximo_numero: 1
 });
 
-onMounted(() => {
-  const data = getEmpresa();
+// CAMBIO 1: El onMounted ahora es async para poder usar await
+onMounted(async () => {
+  const data = await getEmpresa(); // Esperamos a que Supabase responda
   if (data) {
-    // Fusionamos los datos existentes con el estado inicial para no perder campos
     empresa.value = { ...empresa.value, ...data };
   }
 });
@@ -99,9 +99,10 @@ const subirLogo = (event) => {
   const file = event.target.files[0];
   if (!file) return;
 
-  // Validación de tamaño (opcional, para no saturar el LocalStorage)
-  if (file.size > 500000) { // 500kb
-    alert("El logo es muy pesado. Intenta con uno menor a 500kb.");
+  // Supabase permite logos más pesados que LocalStorage, 
+  // pero mantengamos la precaución de tamaño.
+  if (file.size > 1000000) { // 1MB
+    alert("El logo es muy pesado. Intenta con uno menor a 1MB.");
     return;
   }
 
@@ -112,35 +113,33 @@ const subirLogo = (event) => {
   reader.readAsDataURL(file);
 };
 
-const guardarCambios = () => {
+// CAMBIO 2: El guardar ahora es async
+const guardarCambios = async () => {
   try {
-    saveEmpresa(empresa.value); // Usamos la nueva función
-    alert("¡Configuración guardada correctamente!");
-    // Recargar la página para que el logo se actualice en todo el sitio
-    window.location.reload(); 
+    await saveEmpresa(empresa.value); // Esperamos a que se guarde en la nube
+    alert("¡Configuración guardada en la nube correctamente!");
+    // window.location.reload(); // Ya no es estrictamente necesario, pero puedes dejarlo
   } catch (error) {
     console.error(error);
-    alert("Error al guardar los ajustes.");
+    alert("Error al conectar con la base de datos.");
   }
 };
 </script>
+
 <style scoped>
+/* Los estilos permanecen igual */
 .ajustes-container { padding: 20px; max-width: 1000px; margin: 0 auto; }
 .ajustes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
 .ajustes-section { padding: 25px !important; }
-.ajustes-section h3 { margin-bottom: 20px; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
-
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 .field.full { grid-column: span 2; }
 .field label { display: block; font-size: 0.8rem; color: #64748b; margin-bottom: 5px; }
 .field input, .field select { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; }
-
 .logo-upload { display: flex; align-items: center; gap: 20px; }
 .preview-logo { width: 120px; height: 120px; border: 2px dashed #cbd5e1; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #f8fafc; }
 .preview-logo img { width: 100%; height: 100%; object-fit: contain; }
 .hidden { display: none; }
 .btn-subir { background: #f1f5f9; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; border: 1px solid #e2e8f0; }
-
 .footer-actions { margin-top: 30px; display: flex; justify-content: flex-end; }
 .btn-guardar { background: #2563eb; color: white; border: none; padding: 15px 30px; border-radius: 10px; font-weight: bold; cursor: pointer; }
 </style>

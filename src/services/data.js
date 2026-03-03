@@ -1,232 +1,179 @@
-// src/services/data.js
+import { supabase } from "@/supabase";
 import { getCurrentUser } from "./auth";
 
-const STORAGE = {
-  clientes: "contasoft_clientes",
-  proveedores: "contasoft_proveedores",
-  usuarios: "contasoft_usuarios",
-  empresa: "contasoft_empresa",
-  facturas: "contasoft_facturas",
-  stock: "contasoft_stock",
-  cheques: "contasoft_cheques",
-  productos: "contasoft_productos",
-  compras: "contasoft_compras"
-};
+// --- HELPERS ---
+const getEmpresaId = () => getCurrentUser()?.empresa_id || 'emp_default';
 
-// --- HELPERS INTERNOS (No se exportan) ---
-function load(key, fallback = []) {
-  try {
-    const raw = localStorage.getItem(key);
-    const user = getCurrentUser();
-    if (!raw) return fallback;
-    let data = JSON.parse(raw);
-    if (!Array.isArray(data)) data = [data]; 
-    if (!user) return fallback;
-    if (key === STORAGE.usuarios) return data;
-    const filtrados = data.filter(item => item.empresaId === user.empresaId);
-    if (key === STORAGE.empresa) {
-      return filtrados.length > 0 ? filtrados[0] : (Array.isArray(fallback) ? null : fallback);
-    }
-    return filtrados;
-  } catch (e) { return fallback; }
+// --- EMPRESA ---
+export async function getEmpresa() {
+  const { data } = await supabase.from('empresa').select('*').eq('empresa_id', getEmpresaId()).single();
+  return data;
 }
 
-function saveWithTenant(key, value) {
-  const user = getCurrentUser();
-  if (!user) return;
-  const raw = localStorage.getItem(key);
-  let allData = [];
-  try {
-    const parsed = raw ? JSON.parse(raw) : [];
-    allData = Array.isArray(parsed) ? parsed : [parsed];
-  } catch (e) { allData = []; }
-
-  if (!Array.isArray(value)) {
-    const item = { ...value, empresaId: user.empresaId };
-    const idKey = (key === STORAGE.empresa) ? 'empresaId' : 'id';
-    const idx = allData.findIndex(i => i[idKey] === item[idKey]);
-    if (idx !== -1) allData[idx] = item;
-    else allData.push(item);
-  } else {
-    const otrasEmpresas = allData.filter(i => i.empresaId !== user.empresaId);
-    const estaEmpresa = value.map(i => ({ ...i, empresaId: user.empresaId }));
-    allData = [...otrasEmpresas, ...estaEmpresa];
-  }
-  localStorage.setItem(key, JSON.stringify(allData));
+export async function saveEmpresa(empresaData) {
+  return await supabase.from('empresa').upsert({ ...empresaData, empresa_id: getEmpresaId() });
 }
 
-// --- EXPORTS DE DATOS ---
-export function initializeDataService() {
-  // 1. Crear el usuario base si no existe
-  const usuariosExistentes = JSON.parse(localStorage.getItem("contasoft_usuarios") || "[]");
-  
-  if (usuariosExistentes.length === 0) {
-    const adminUser = { 
-      id: 1, 
-      nombre: "Admin", 
-      email: "admin@admin.com", 
-      password: "1234", 
-      rol: "admin", 
-      empresaId: "emp_default" 
-    };
-    localStorage.setItem("contasoft_usuarios", JSON.stringify([adminUser]));
-    
-    // AUTO-LOGIN: Si no hay nadie logueado, logueamos al admin automáticamente
-    if (!localStorage.getItem("contasoft_user_sesion")) {
-        localStorage.setItem("contasoft_user_sesion", JSON.stringify(adminUser));
-    }
-  }
-  
-  // ... resto de tu código de inicialización (clientes, stock, etc)
+// --- FACTURAS (VENTAS) ---
+export async function getFacturas() {
+  const { data } = await supabase.from('facturas').select('*').eq('empresa_id', getEmpresaId()).order('fecha', { ascending: false });
+  return data || [];
 }
 
-// Empresa
-export function getEmpresa() { return load(STORAGE.empresa, null); }
-export function saveEmpresa(empresa) { saveWithTenant(STORAGE.empresa, empresa); }
-
-// Facturas
-export function getFacturas() { return load(STORAGE.facturas); }
-export function saveFactura(f) {
-  if (!f.id) f.id = Date.now();
-  saveWithTenant(STORAGE.facturas, f);
-  return f;
+export async function getFacturaById(id) {
+  const { data } = await supabase.from('facturas').select('*').eq('id', id).single();
+  return data;
 }
 
-// Clientes y Proveedores
-export function getClientes() { return load(STORAGE.clientes); }
-export function saveCliente(c) { if (!c.id) c.id = Date.now(); saveWithTenant(STORAGE.clientes, c); }
-export function getProveedores() { return load(STORAGE.proveedores); }
-export function saveProveedor(p) { if (!p.id) p.id = Date.now(); saveWithTenant(STORAGE.proveedores, p); }
-
-// Stock y Productos
-export function getStockItems() { return load(STORAGE.stock); }
-export function saveStockItem(i) { if (!i.id) i.id = Date.now(); saveWithTenant(STORAGE.stock, i); }
-
-// Cheques (UNIFICADOS)
-export function getCheques() { return load(STORAGE.cheques); }
-export function saveCheque(c) { if (!c.id) c.id = Date.now(); saveWithTenant(STORAGE.cheques, c); }
-export function updateChequesList(lista) { saveWithTenant(STORAGE.cheques, lista); }
-
-// Compras
-export function getCompras() { return load(STORAGE.compras); }
-export function saveCompra(c) { if (!c.id) c.id = Date.now(); saveWithTenant(STORAGE.compras, c); }
-
-// Usuarios (Para Auth)
-export function getUsuarios() { return load(STORAGE.usuarios); }
-export function saveUsuario(u) {
-  const us = getUsuarios();
-  const i = us.findIndex(x => x.id === u.id || (u.email && x.email === u.email));
-  if (i !== -1) us[i] = u; else us.push(u);
-  localStorage.setItem(STORAGE.usuarios, JSON.stringify(us));
-}
-export function deleteUser(id) {
-  const us = getUsuarios().filter(u => u.id !== id);
-  localStorage.setItem(STORAGE.usuarios, JSON.stringify(us));
+export async function saveFactura(f) {
+  return await supabase.from('facturas').insert([{ ...f, empresa_id: getEmpresaId() }]).select().single();
 }
 
-// --- LOGICA DE NEGOCIO ---
-export function registrarPago(id, monto, metodo = "Transferencia") {
-  const facturas = getFacturas();
-  const f = facturas.find(x => x.id == id);
-  if (!f) return;
-  if (!f.pagos) f.pagos = [];
-  f.pagos.push({ id: Date.now(), fecha: new Date().toISOString().split("T")[0], monto: Number(monto), metodo });
-  f.montoPagado = f.pagos.reduce((acc, p) => acc + p.monto, 0);
-  saveWithTenant(STORAGE.facturas, facturas);
+export async function getNextNumeroFactura() {
+  const { data } = await supabase.from('facturas').select('numero').order('numero', { ascending: false }).limit(1);
+  const ultimo = (data && data.length > 0) ? parseInt(data[0].numero) : 0;
+  return (ultimo + 1).toString().padStart(8, '0');
 }
-// --- FUNCIONES DE DASHBOARD ---
-export function getDashboardKPIs() {
-  const facturas = getFacturas().filter(f => f.estado !== 'ANULADA');
-  const clientes = getClientes();
-  const stock = getStockItems();
 
+// --- CLIENTES ---
+export async function getClientes() {
+  const { data } = await supabase.from('clientes').select('*').eq('empresa_id', getEmpresaId()).order('nombre');
+  return data || [];
+}
+
+export async function getClienteById(id) {
+  return (await supabase.from('clientes').select('*').eq('id', id).single()).data;
+}
+
+export async function saveCliente(c) {
+  return await supabase.from('clientes').upsert({ ...c, empresa_id: getEmpresaId() });
+}
+
+// --- PROVEEDORES ---
+export async function getProveedores() {
+  const { data } = await supabase.from('proveedores').select('*').eq('empresa_id', getEmpresaId()).order('nombre');
+  return data || [];
+}
+
+export async function getProveedorById(id) {
+  return (await supabase.from('proveedores').select('*').eq('id', id).single()).data;
+}
+
+export async function saveProveedor(p) {
+  return await supabase.from('proveedores').upsert({ ...p, empresa_id: getEmpresaId() });
+}
+
+// --- STOCK / PRODUCTOS ---
+export async function getStockItems() {
+  const { data } = await supabase.from('stock').select('*').eq('empresa_id', getEmpresaId()).order('nombre');
+  return data || [];
+}
+
+export async function saveStockItem(i) {
+  return await supabase.from('stock').upsert({ ...i, empresa_id: getEmpresaId() });
+}
+
+export async function sumarStock(id, cant) {
+  const { data } = await supabase.from('stock').select('cantidad').eq('id', id).single();
+  if (data) await supabase.from('stock').update({ cantidad: data.cantidad + cant }).eq('id', id);
+}
+
+// --- COMPRAS ---
+export async function saveCompra(compra) {
+  return await supabase.from('compras').insert([{ ...compra, empresa_id: getEmpresaId() }]).select().single();
+}
+
+// --- CHEQUES ---
+export async function getCheques() {
+  const { data } = await supabase.from('cheques').select('*').eq('empresa_id', getEmpresaId()).order('fecha_vencimiento');
+  return data || [];
+}
+
+export async function saveCheque(c) {
+  return await supabase.from('cheques').upsert({ ...c, empresa_id: getEmpresaId() });
+}
+
+// --- CAJA ---
+export async function registrarMovimientoCaja(tipo, monto, concepto, categoria = 'General') {
+  return await supabase.from('caja').insert([{
+    tipo: tipo.toLowerCase(),
+    monto: Number(monto),
+    concepto,
+    categoria,
+    empresa_id: getEmpresaId(),
+    fecha: new Date().toISOString()
+  }]);
+}
+
+// --- DASHBOARD ---
+export async function getDashboardKPIs() {
+  const { data: facturas } = await supabase.from('facturas').select('total').neq('estado', 'ANULADA').eq('empresa_id', getEmpresaId());
+  const { data: stock } = await supabase.from('stock').select('cantidad').eq('empresa_id', getEmpresaId());
+  const totalFacturado = facturas?.reduce((acc, f) => acc + (Number(f.total) || 0), 0) || 0;
   return {
-    totalFacturado: facturas.reduce((acc, f) => acc + (Number(f.total) || 0), 0),
-    totalFacturas: facturas.length,
-    totalClientes: clientes.length,
-    stockBajo: stock.filter(i => i.cantidad < 5).length
+    totalFacturado,
+    totalFacturas: facturas?.length || 0,
+    stockBajo: stock?.filter(i => i.cantidad < 5).length || 0
   };
 }
-// --- FUNCIONES DE BÚSQUEDA ESPECÍFICA (Añadir al final de data.js) ---
 
-export function getClienteById(id) {
-  const clientes = getClientes();
-  // Usamos == en lugar de === por si el ID viene como String desde la URL
-  return clientes.find(c => c.id == id) || null;
+// --- USUARIOS ---
+export async function getUsuarios() {
+  return (await supabase.from('usuarios').select('*').eq('empresa_id', getEmpresaId())).data || [];
 }
 
-export function getProveedorById(id) {
-  const proveedores = getProveedores();
-  return proveedores.find(p => p.id == id) || null;
+export async function deleteUser(id) {
+  return await supabase.from('usuarios').delete().eq('id', id);
 }
-// --- FUNCIONES DE FACTURACIÓN Y STOCK (Añadir al final de data.js) ---
-
-export function getNextNumeroFactura(puntoVenta, tipo) {
-  const facturas = getFacturas();
-  // Filtramos las facturas del mismo punto de venta y tipo
-  const filtradas = facturas.filter(f => f.puntoVenta === puntoVenta && f.tipoComprobante === tipo);
+// --- REPORTES (Versión para el componente que me pasaste) ---
+export async function getMetricasReportes(periodoDias = "30") {
+  const empresaId = getEmpresaId();
   
-  if (filtradas.length === 0) return { numero: 1 };
-  
-  // Buscamos el número más alto
-  const maxNumero = Math.max(...filtradas.map(f => f.numero || 0));
-  return { numero: maxNumero + 1 };
-}
+  // Calculamos la fecha de corte
+  const fechaCorte = new Date();
+  fechaCorte.setDate(fechaCorte.getDate() - parseInt(periodoDias));
+  const fechaIso = fechaCorte.toISOString();
 
-export function descontarStock(productoId, cantidad) {
-  const productos = getStockItems();
-  const index = productos.findIndex(p => p.id == productoId);
-  
-  if (index !== -1) {
-    productos[index].cantidad -= cantidad;
-    // Guardamos la lista actualizada
-    saveWithTenant(STORAGE.stock, productos);
-  }
-}
-// --- FUNCIONES DE BÚSQUEDA ESPECÍFICA (Añadir a data.js) ---
+  // 1. Ingresos (Facturas)
+  const { data: facturas } = await supabase
+    .from('facturas')
+    .select('total, items')
+    .eq('empresa_id', empresaId)
+    .gte('fecha', fechaIso)
+    .neq('estado', 'ANULADA');
 
-export function getFacturaById(id) {
-  const facturas = getFacturas();
-  // Usamos == para comparar string/number sin problemas
-  return facturas.find(f => f.id == id) || null;
-}
-// --- FUNCIONES DE CAJA (Añadir al final de data.js) ---
+  // 2. Egresos (Caja)
+  const { data: egresos } = await supabase
+    .from('caja')
+    .select('monto, categoria')
+    .eq('empresa_id', empresaId)
+    .eq('tipo', 'egreso')
+    .gte('fecha', fechaIso);
 
-export function getMovimientosCaja() {
-  const facturas = getFacturas().filter(f => f.estado !== 'ANULADA');
-  const compras = getCompras();
+  const ingresosTotales = facturas?.reduce((acc, f) => acc + (Number(f.total) || 0), 0) || 0;
+  const egresosTotales = egresos?.reduce((acc, e) => acc + (Number(e.monto) || 0), 0) || 0;
 
-  // Mapeamos ventas como ingresos
-  const ingresos = facturas.map(f => ({
-    id: f.id,
-    fecha: f.fecha,
-    concepto: `Venta - Factura Nº ${f.numero}`,
-    tipo: 'INGRESO',
-    metodo: f.metodoPago || 'Efectivo',
-    monto: f.total
+  // 3. Procesar Gastos por Categoría
+  const catMap = {};
+  egresos?.forEach(e => {
+    catMap[e.categoria] = (catMap[e.categoria] || 0) + Number(e.monto);
+  });
+  const gastosPorCategoria = Object.entries(catMap).map(([categoria, monto]) => ({
+    categoria,
+    monto,
+    porcentaje: egresosTotales > 0 ? (monto / egresosTotales * 100) : 0
   }));
 
-  // Mapeamos compras como egresos
-  const egresos = compras.map(c => ({
-    id: c.id,
-    fecha: c.fecha,
-    concepto: `Compra - Proveedor: ${c.proveedorId}`, // Podrías buscar el nombre del proveedor aquí
-    tipo: 'EGRESO',
-    metodo: c.metodoPago || 'Efectivo',
-    monto: -c.total
-  }));
-
-  // Unimos y ordenamos por fecha (más reciente primero)
-  return [...ingresos, ...egresos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  return {
+    ingresos: ingresosTotales,
+    egresos: egresosTotales,
+    gastosPorCategoria,
+    topProductos: [] // Aquí podrías procesar facturas.items si lo necesitas
+  };
 }
-// --- FUNCIONES DE STOCK FALTANTES (Añadir a data.js) ---
-
-export function getStockById(id) {
-  const items = getStockItems();
-  return items.find(i => i.id == id) || null;
-}
-
-export function deleteStockItem(id) {
-  const items = getStockItems().filter(i => i.id != id);
-  saveWithTenant(STORAGE.stock, items);
+// --- FUNCIÓN DE INICIALIZACIÓN ---
+// Esta función es llamada por main.js al arrancar la app
+export function initializeDataService() {
+    console.log("🚀 Servicio de datos de ContaSoft inicializado correctamente.");
+    return true;
 }

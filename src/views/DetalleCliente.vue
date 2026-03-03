@@ -9,26 +9,26 @@
     <div class="card-glass">
       <form @submit.prevent="guardar">
         <div class="field">
-          <label>Nombre</label>
-          <input v-model="cliente.nombre" required />
+          <label>Nombre o Razón Social</label>
+          <input v-model="cliente.nombre" placeholder="Ej: Juan Pérez o Empresa S.A." required />
         </div>
 
         <div class="field">
           <label>Email</label>
-          <input v-model="cliente.email" type="email" />
+          <input v-model="cliente.email" type="email" placeholder="correo@ejemplo.com" />
         </div>
 
         <div class="field">
           <label>Teléfono</label>
-          <input v-model="cliente.telefono" />
+          <input v-model="cliente.telefono" placeholder="Ej: 11 1234 5678" />
         </div>
 
         <div class="actions">
-          <button type="submit" class="btn-primary">
-            Guardar
+          <button type="submit" class="btn-primary" :disabled="guardando">
+            {{ guardando ? "Guardando..." : "Guardar en Nube" }}
           </button>
 
-          <button type="button" class="btn" @click="volver">
+          <button type="button" class="btn" @click="volver" :disabled="guardando">
             Cancelar
           </button>
         </div>
@@ -40,14 +40,12 @@
 <script setup>
 import { onMounted, ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import {
-  getClienteById,
-  saveCliente
-} from "@/services/data";
+import { getClienteById, saveCliente } from "@/services/data";
 
 const route = useRoute();
 const router = useRouter();
 
+const guardando = ref(false);
 const cliente = ref({
   nombre: "",
   email: "",
@@ -56,18 +54,35 @@ const cliente = ref({
 
 const isNuevo = computed(() => route.params.id === "nuevo");
 
-onMounted(() => {
+onMounted(async () => {
   if (!isNuevo.value) {
-    const data = getClienteById(route.params.id);
-    if (data) {
-      cliente.value = { ...data };
+    try {
+      // Llamada asíncrona a Supabase
+      const data = await getClienteById(route.params.id);
+      if (data) {
+        cliente.value = { ...data };
+      }
+    } catch (error) {
+      console.error("Error al obtener el cliente:", error);
+      alert("No se pudo cargar la información del cliente.");
     }
   }
 });
 
-function guardar() {
-  saveCliente(cliente.value);
-  router.push("/clientes");
+async function guardar() {
+  if (guardando.value) return;
+  
+  guardando.value = true;
+  try {
+    // saveCliente ahora usa upsert de Supabase
+    await saveCliente(cliente.value);
+    router.push("/clientes");
+  } catch (error) {
+    console.error("Error al guardar cliente:", error);
+    alert("Error al guardar en la base de datos.");
+  } finally {
+    guardando.value = false;
+  }
 }
 
 function volver() {
@@ -76,93 +91,36 @@ function volver() {
 </script>
 
 <style scoped>
-.page {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-}
+.page { padding: 20px; display: flex; flex-direction: column; gap: 20px; align-items: center; }
+.header { width: 100%; max-width: 500px; display: flex; align-items: center; }
 
 .card-glass {
-  backdrop-filter: blur(15px);
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  padding: 24px;
-  max-width: 500px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 16px;
-}
-
-label {
-  font-size: 0.9rem;
-  opacity: 0.8;
-  margin-bottom: 4px;
-}
-
-input {
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  outline: none;
-  background: rgba(255, 255, 255, 0.25);
-  color: inherit;
-}
-
-.actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.btn-primary {
-  background: rgba(0, 123, 255, 0.85);
-  border: none;
-  color: white;
-  padding: 10px 18px;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-.btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  padding: 10px 18px;
-  border-radius: 10px;
-  cursor: pointer;
-}
-.card-glass {
-  background: white; /* Cambiamos de transparent a blanco sólido para legibilidad */
+  background: white;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
   padding: 24px;
+  width: 100%;
   max-width: 500px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
+.field { display: flex; flex-direction: column; margin-bottom: 16px; }
+
 label {
   font-size: 0.9rem;
-  font-weight: 600; /* Más negrita para leer mejor */
-  color: #475569; /* Gris oscuro legible */
+  font-weight: 600;
+  color: #475569;
   margin-bottom: 6px;
 }
 
 input {
   padding: 12px;
   border-radius: 8px;
-  border: 1px solid #cbd5e1; /* Borde definido */
+  border: 1px solid #cbd5e1;
   background: #f8fafc;
   color: #1e293b;
   font-size: 1rem;
+  transition: all 0.2s;
 }
 
 input:focus {
@@ -171,4 +129,30 @@ input:focus {
   outline: none;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
+
+.actions { display: flex; gap: 12px; margin-top: 20px; }
+
+.btn-primary {
+  background: #2563eb;
+  border: none;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  flex: 1;
+}
+
+.btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+
+.btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 12px 24px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #475569;
+}
+
+.btn:hover { background: #e2e8f0; }
 </style>
