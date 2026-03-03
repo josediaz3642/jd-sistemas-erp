@@ -50,3 +50,35 @@ export async function deleteUser(id) {
   }
   return await dataService.deleteUser(id);
 }
+// --- CLIENTES (Agregar esta si no está) ---
+export async function getClienteById(id) {
+  const { data, error } = await supabase
+    .from('clientes')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) console.error("Error al obtener cliente:", error);
+  return data;
+}
+
+// --- PROVEEDORES (Agregar esta por si acaso) ---
+export async function getProveedorById(id) {
+  const { data, error } = await supabase
+    .from('proveedores')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) console.error("Error al obtener proveedor:", error);
+  return data;
+}
+
+// --- STOCK (Agregar esta para DetalleStock.vue) ---
+export async function getStockItemById(id) {
+  const { data, error } = await supabase
+    .from('stock')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) console.error("Error al obtener producto:", error);
+  return data;
+}

@@ -42,7 +42,8 @@ export async function getClientes() {
 }
 
 export async function getClienteById(id) {
-  return (await supabase.from('clientes').select('*').eq('id', id).single()).data;
+  const { data } = await supabase.from('clientes').select('*').eq('id', id).single();
+  return data;
 }
 
 export async function saveCliente(c) {
@@ -56,7 +57,8 @@ export async function getProveedores() {
 }
 
 export async function getProveedorById(id) {
-  return (await supabase.from('proveedores').select('*').eq('id', id).single()).data;
+  const { data } = await supabase.from('proveedores').select('*').eq('id', id).single();
+  return data;
 }
 
 export async function saveProveedor(p) {
@@ -67,6 +69,11 @@ export async function saveProveedor(p) {
 export async function getStockItems() {
   const { data } = await supabase.from('stock').select('*').eq('empresa_id', getEmpresaId()).order('nombre');
   return data || [];
+}
+
+export async function getStockItemById(id) {
+  const { data } = await supabase.from('stock').select('*').eq('id', id).single();
+  return data;
 }
 
 export async function saveStockItem(i) {
@@ -119,22 +126,32 @@ export async function getDashboardKPIs() {
 
 // --- USUARIOS ---
 export async function getUsuarios() {
-  return (await supabase.from('usuarios').select('*').eq('empresa_id', getEmpresaId())).data || [];
+  const { data } = await supabase.from('usuarios').select('*').eq('empresa_id', getEmpresaId());
+  return data || [];
+}
+
+export async function saveUsuario(u) {
+  const { data, error } = await supabase
+    .from('usuarios')
+    .upsert({ ...u, empresa_id: u.empresa_id || getEmpresaId() })
+    .select();
+  if (error) throw error;
+  return data[0];
 }
 
 export async function deleteUser(id) {
-  return await supabase.from('usuarios').delete().eq('id', id);
+  const { error } = await supabase.from('usuarios').delete().eq('id', id);
+  if (error) throw error;
+  return true;
 }
-// --- REPORTES (Versión para el componente que me pasaste) ---
+
+// --- REPORTES ---
 export async function getMetricasReportes(periodoDias = "30") {
   const empresaId = getEmpresaId();
-  
-  // Calculamos la fecha de corte
   const fechaCorte = new Date();
   fechaCorte.setDate(fechaCorte.getDate() - parseInt(periodoDias));
   const fechaIso = fechaCorte.toISOString();
 
-  // 1. Ingresos (Facturas)
   const { data: facturas } = await supabase
     .from('facturas')
     .select('total, items')
@@ -142,7 +159,6 @@ export async function getMetricasReportes(periodoDias = "30") {
     .gte('fecha', fechaIso)
     .neq('estado', 'ANULADA');
 
-  // 2. Egresos (Caja)
   const { data: egresos } = await supabase
     .from('caja')
     .select('monto, categoria')
@@ -153,7 +169,6 @@ export async function getMetricasReportes(periodoDias = "30") {
   const ingresosTotales = facturas?.reduce((acc, f) => acc + (Number(f.total) || 0), 0) || 0;
   const egresosTotales = egresos?.reduce((acc, e) => acc + (Number(e.monto) || 0), 0) || 0;
 
-  // 3. Procesar Gastos por Categoría
   const catMap = {};
   egresos?.forEach(e => {
     catMap[e.categoria] = (catMap[e.categoria] || 0) + Number(e.monto);
@@ -168,11 +183,10 @@ export async function getMetricasReportes(periodoDias = "30") {
     ingresos: ingresosTotales,
     egresos: egresosTotales,
     gastosPorCategoria,
-    topProductos: [] // Aquí podrías procesar facturas.items si lo necesitas
+    topProductos: []
   };
 }
-// --- FUNCIÓN DE INICIALIZACIÓN ---
-// Esta función es llamada por main.js al arrancar la app
+
 export function initializeDataService() {
     console.log("🚀 Servicio de datos de ContaSoft inicializado correctamente.");
     return true;
