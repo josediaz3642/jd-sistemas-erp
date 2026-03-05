@@ -2,8 +2,7 @@ import { supabase } from "@/supabase";
 import { getCurrentUser } from "./auth";
 
 // --- HELPERS ---
-const getEmpresaId = () => getCurrentUser()?.empresa_id || 'emp_default';
-
+const getEmpresaId = () => 'emp_default';
 // --- EMPRESA ---
 export async function getEmpresa() {
   const { data } = await supabase.from('empresa').select('*').eq('empresa_id', getEmpresaId()).single();
@@ -14,27 +13,79 @@ export async function saveEmpresa(empresaData) {
   return await supabase.from('empresa').upsert({ ...empresaData, empresa_id: getEmpresaId() });
 }
 
-// --- FACTURAS (VENTAS) ---
+// --- FACTURAS ---
 export async function getFacturas() {
   const { data } = await supabase.from('facturas').select('*').eq('empresa_id', getEmpresaId()).order('fecha', { ascending: false });
   return data || [];
 }
 
 export async function getFacturaById(id) {
-  const { data } = await supabase.from('facturas').select('*').eq('id', id).single();
+  // Si el id es basura, no molestamos a Supabase
+  if (!id || id === 'undefined' || id === 'nuevo' || id === '[object Object]') return null;
+  
+  const { data, error } = await supabase
+    .from('facturas')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) return null;
   return data;
 }
 
 export async function saveFactura(f) {
-  return await supabase.from('facturas').insert([{ ...f, empresa_id: getEmpresaId() }]).select().single();
-}
+  const empresaId = getEmpresaId();
 
+  // Limpiamos el objeto para que coincida EXACTAMENTE con las columnas de tu SQL
+  const payload = {
+    empresa_id: empresaId,
+    numero: f.numero || f.numero_factura, // Adaptamos si viene con otro nombre
+    cliente_id: f.cliente_id,
+    cliente_nombre: f.cliente_nombre,
+    subtotal: Number(f.subtotal) || 0,
+    iva: Number(f.iva) || 0,
+    total: Number(f.total) || 0,
+    items: f.items || [], // Asegúrate que sea un array
+    estado: f.estado || 'EMITIDA',
+    fecha: f.fecha || new Date().toISOString()
+  };
+
+  // Si estamos editando (id existe y no es 'nuevo')
+  if (f.id && f.id !== 'nuevo' && f.id !== 0) {
+    payload.id = f.id;
+  }
+
+  const { data, error } = await supabase
+    .from('facturas')
+    .upsert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error detallado en Factura:", error.message);
+    throw error;
+  }
+  return data;
+}
 export async function getNextNumeroFactura() {
-  const { data } = await supabase.from('facturas').select('numero').order('numero', { ascending: false }).limit(1);
-  const ultimo = (data && data.length > 0) ? parseInt(data[0].numero) : 0;
-  return (ultimo + 1).toString().padStart(8, '0');
-}
+  try {
+    const { data, error } = await supabase
+      .from('facturas')
+      .select('numero')
+      .eq('empresa_id', getEmpresaId())
+      .order('numero', { ascending: false })
+      .limit(1);
 
+    if (error) throw error;
+
+    const ultimo = (data && data.length > 0) ? parseInt(data[0].numero) : 0;
+    const siguiente = ultimo + 1;
+    return siguiente.toString().padStart(8, '0');
+  } catch (err) {
+    console.error("Error al generar número de factura:", err);
+    return "00000001"; // Si falla o está vacía, empezamos en 1
+  }
+}
 // --- CLIENTES ---
 export async function getClientes() {
   const { data } = await supabase.from('clientes').select('*').eq('empresa_id', getEmpresaId()).order('nombre');
@@ -42,14 +93,22 @@ export async function getClientes() {
 }
 
 export async function getClienteById(id) {
+  if (!id || id === 'nuevo' || id === '0') return null;
   const { data } = await supabase.from('clientes').select('*').eq('id', id).single();
   return data;
 }
 
 export async function saveCliente(c) {
-  return await supabase.from('clientes').upsert({ ...c, empresa_id: getEmpresaId() });
+  const payload = { ...c, empresa_id: getEmpresaId() };
+  if (!c.id || c.id === 0 || c.id === 'nuevo') delete payload.id;
+  
+  const { data, error } = await supabase.from('clientes').upsert(payload).select();
+  if (error) {
+    console.error("Detalle del error en Clientes:", error.message, error.details);
+    throw error;
+  }
+  return data[0];
 }
-
 // --- PROVEEDORES ---
 export async function getProveedores() {
   const { data } = await supabase.from('proveedores').select('*').eq('empresa_id', getEmpresaId()).order('nombre');
@@ -57,50 +116,53 @@ export async function getProveedores() {
 }
 
 export async function getProveedorById(id) {
+  if (!id || id === 'nuevo' || id === '0') return null;
   const { data } = await supabase.from('proveedores').select('*').eq('id', id).single();
   return data;
 }
 
 export async function saveProveedor(p) {
-  return await supabase.from('proveedores').upsert({ ...p, empresa_id: getEmpresaId() });
+  const payload = { ...p, empresa_id: getEmpresaId() };
+  if (!p.id || p.id === 0 || p.id === 'nuevo') delete payload.id;
+  
+  const { data, error } = await supabase.from('proveedores').upsert(payload).select();
+  if (error) {
+    console.error("Detalle del error en Proveedores:", error.message, error.details);
+    throw error;
+  }
+  return data[0];
 }
 
-// --- STOCK / PRODUCTOS ---
+// --- STOCK ---
 export async function getStockItems() {
   const { data } = await supabase.from('stock').select('*').eq('empresa_id', getEmpresaId()).order('nombre');
   return data || [];
 }
 
-export async function getStockItemById(id) {
+export async function getStockById(id) {
+  if (!id || id === 'nuevo' || id === '0') return null;
   const { data } = await supabase.from('stock').select('*').eq('id', id).single();
   return data;
 }
 
 export async function saveStockItem(i) {
-  return await supabase.from('stock').upsert({ ...i, empresa_id: getEmpresaId() });
+  const payload = { ...i, empresa_id: getEmpresaId() };
+  if (!i.id || i.id === 0 || i.id === 'nuevo') delete payload.id;
+  
+  const { data, error } = await supabase.from('stock').upsert(payload).select();
+  if (error) {
+    console.error("Detalle del error en Stock:", error.message, error.details);
+    throw error;
+  }
+  return data[0];
+}
+export async function deleteStockItem(id) {
+  const { error } = await supabase.from('stock').delete().eq('id', id);
+  if (error) throw error;
+  return true;
 }
 
-export async function sumarStock(id, cant) {
-  const { data } = await supabase.from('stock').select('cantidad').eq('id', id).single();
-  if (data) await supabase.from('stock').update({ cantidad: data.cantidad + cant }).eq('id', id);
-}
-
-// --- COMPRAS ---
-export async function saveCompra(compra) {
-  return await supabase.from('compras').insert([{ ...compra, empresa_id: getEmpresaId() }]).select().single();
-}
-
-// --- CHEQUES ---
-export async function getCheques() {
-  const { data } = await supabase.from('cheques').select('*').eq('empresa_id', getEmpresaId()).order('fecha_vencimiento');
-  return data || [];
-}
-
-export async function saveCheque(c) {
-  return await supabase.from('cheques').upsert({ ...c, empresa_id: getEmpresaId() });
-}
-
-// --- CAJA ---
+// --- CAJA (LA QUE FALTABA) ---
 export async function registrarMovimientoCaja(tipo, monto, concepto, categoria = 'General') {
   return await supabase.from('caja').insert([{
     tipo: tipo.toLowerCase(),
@@ -114,80 +176,97 @@ export async function registrarMovimientoCaja(tipo, monto, concepto, categoria =
 
 // --- DASHBOARD ---
 export async function getDashboardKPIs() {
-  const { data: facturas } = await supabase.from('facturas').select('total').neq('estado', 'ANULADA').eq('empresa_id', getEmpresaId());
-  const { data: stock } = await supabase.from('stock').select('cantidad').eq('empresa_id', getEmpresaId());
-  const totalFacturado = facturas?.reduce((acc, f) => acc + (Number(f.total) || 0), 0) || 0;
+  const empresaId = getEmpresaId();
+  const { data: facturas } = await supabase.from('facturas').select('total').eq('empresa_id', empresaId);
+  const { data: stock } = await supabase.from('stock').select('cantidad').eq('empresa_id', empresaId);
   return {
-    totalFacturado,
+    totalFacturado: facturas?.reduce((acc, f) => acc + (Number(f.total) || 0), 0) || 0,
     totalFacturas: facturas?.length || 0,
     stockBajo: stock?.filter(i => i.cantidad < 5).length || 0
   };
 }
 
-// --- USUARIOS ---
-export async function getUsuarios() {
-  const { data } = await supabase.from('usuarios').select('*').eq('empresa_id', getEmpresaId());
-  return data || [];
+// --- CHEQUES ---
+export async function getCheques() {
+  const { data, error } = await supabase
+    .from('cheques')
+    .select('*')
+    .eq('empresa_id', getEmpresaId()) // Asegúrate de que getEmpresaId() devuelva algo
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error cargando cheques:", error.message);
+    return [];
+  }
+  return data;
 }
 
-export async function saveUsuario(u) {
+export async function saveCheque(c) {
+  const empresaId = getEmpresaId();
+  
+  const payload = {
+    empresa_id: empresaId,
+    numero: String(c.numero || ''),
+    banco: c.banco || '',
+    emisor: c.emisor || '',
+    monto: Number(c.monto) || 0,
+    fecha_emision: c.fecha_emision || new Date().toISOString().split('T')[0],
+    fecha_vencimiento: c.fecha_vencimiento || null,
+    estado: c.estado || 'CARTERA'
+  };
+
+  console.log("Enviando a Supabase:", payload); // <-- MIRA ESTO EN CONSOLA
+
   const { data, error } = await supabase
-    .from('usuarios')
-    .upsert({ ...u, empresa_id: u.empresa_id || getEmpresaId() })
+    .from('cheques')
+    .upsert(payload)
     .select();
-  if (error) throw error;
+
+  if (error) {
+    console.error("Error en Supabase al guardar cheque:", error.message);
+    throw error;
+  }
   return data[0];
 }
 
-export async function deleteUser(id) {
-  const { error } = await supabase.from('usuarios').delete().eq('id', id);
+export function initializeDataService() {
+    console.log("🚀 Servicio de datos completo inicializado.");
+    return true;
+}
+// --- COMPRAS ---
+export async function saveCompra(compra) {
+  const payload = { ...compra, empresa_id: getEmpresaId() };
+  // Si es una compra nueva, eliminamos el ID para que Supabase lo genere
+  if (!compra.id || compra.id === 0 || compra.id === 'nuevo') delete payload.id;
+  
+  const { data, error } = await supabase
+    .from('compras')
+    .insert([payload])
+    .select()
+    .single();
+    
   if (error) throw error;
-  return true;
+  return data;
 }
 
-// --- REPORTES ---
+// --- REPORTES Y MÉTRICAS (Por si las moscas) ---
 export async function getMetricasReportes(periodoDias = "30") {
   const empresaId = getEmpresaId();
-  const fechaCorte = new Date();
-  fechaCorte.setDate(fechaCorte.getDate() - parseInt(periodoDias));
-  const fechaIso = fechaCorte.toISOString();
-
   const { data: facturas } = await supabase
     .from('facturas')
-    .select('total, items')
+    .select('total')
     .eq('empresa_id', empresaId)
-    .gte('fecha', fechaIso)
     .neq('estado', 'ANULADA');
 
   const { data: egresos } = await supabase
     .from('caja')
-    .select('monto, categoria')
+    .select('monto')
     .eq('empresa_id', empresaId)
-    .eq('tipo', 'egreso')
-    .gte('fecha', fechaIso);
-
-  const ingresosTotales = facturas?.reduce((acc, f) => acc + (Number(f.total) || 0), 0) || 0;
-  const egresosTotales = egresos?.reduce((acc, e) => acc + (Number(e.monto) || 0), 0) || 0;
-
-  const catMap = {};
-  egresos?.forEach(e => {
-    catMap[e.categoria] = (catMap[e.categoria] || 0) + Number(e.monto);
-  });
-  const gastosPorCategoria = Object.entries(catMap).map(([categoria, monto]) => ({
-    categoria,
-    monto,
-    porcentaje: egresosTotales > 0 ? (monto / egresosTotales * 100) : 0
-  }));
+    .eq('tipo', 'egreso');
 
   return {
-    ingresos: ingresosTotales,
-    egresos: egresosTotales,
-    gastosPorCategoria,
-    topProductos: []
+    ingresos: facturas?.reduce((acc, f) => acc + (Number(f.total) || 0), 0) || 0,
+    egresos: egresos?.reduce((acc, e) => acc + (Number(e.monto) || 0), 0) || 0,
+    gastosPorCategoria: []
   };
-}
-
-export function initializeDataService() {
-    console.log("🚀 Servicio de datos de ContaSoft inicializado correctamente.");
-    return true;
 }

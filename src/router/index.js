@@ -27,7 +27,7 @@ const routes = [
   { path: "/registro", name: "Registro", component: Registro },
   { path: "/dashboard", name: "Dashboard", component: Dashboard },
   { path: "/facturacion", component: Facturacion },
-  { path: "/factura/nueva", component: FacturaCliente },
+  { path: "/factura-nueva", name: "FacturaNueva", component: FacturaCliente },
   { path: "/facturacion/:id", component: DetalleFactura },
   { path: "/ajustes", component: Ajustes },
   { path: "/caja", component: Caja },
@@ -43,11 +43,7 @@ const routes = [
   { path: "/proveedor/:id", component: DetalleProveedor },
   { path: "/compras/nueva", component: NuevaCompra },
   { path: "/cheques", component: Cheques },
-  {
-    path: "/mantenimiento",
-    component: Mantenimiento,
-    meta: { role: ["admin"] }
-  }
+  { path: "/mantenimiento",component: Mantenimiento,meta: { role: ["admin"] }}
 ];
 
 const router = createRouter({

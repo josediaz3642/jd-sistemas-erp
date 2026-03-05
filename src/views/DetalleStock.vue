@@ -1,11 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import {
-  getStockById,
-  saveStockItem,
-  deleteStockItem
-} from "@/services/data";
+import { getStockById,saveStockItem,deleteStockItem} from "@/services/data";
 
 const route = useRoute();
 const router = useRouter();

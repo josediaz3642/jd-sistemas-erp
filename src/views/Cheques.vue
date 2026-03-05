@@ -36,13 +36,13 @@
         </thead>
         <tbody>
           <tr v-for="cheque in chequesFiltrados" :key="cheque.id">
-            <td :class="{ 'vencido': isVencido(cheque.fechaVto) }">
-              {{ formatDate(cheque.fechaVto) }}
+            <td :class="{ 'vencido': isVencido(cheque.fecha_vencimiento) }">
+              {{ formatDate(cheque.fecha_vencimiento) }}
             </td>
             <td>{{ cheque.banco }}</td>
             <td>{{ cheque.numero }}</td>
-            <td>{{ cheque.entidad }}</td>
-            <td class="text-right font-bold">${{ cheque.monto.toLocaleString() }}</td>
+            <td>{{ cheque.emisor }}</td>
+            <td class="text-right font-bold">${{ Number(cheque.monto).toLocaleString() }}</td>
             <td>
               <span :class="'status-badge ' + cheque.estado">{{ cheque.estado }}</span>
             </td>
@@ -63,75 +63,144 @@
         <form @submit.prevent="guardarNuevoCheque">
           <div class="grid-form">
             <div class="form-group">
-              <label>Tipo</label>
+              <label>Tipo de Cheque</label>
               <select v-model="nuevoCheque.tipo" required>
                 <option value="cartera">Recibido (Cartera)</option>
-                <option value="propio">Emitido (Propio)</option>
+                <option value="propios">Emitido (Propio)</option>
               </select>
             </div>
+
+            <div class="form-group">
+              <label>{{ nuevoCheque.tipo === 'cartera' ? 'Recibido de (Cliente)' : 'Entregado a (Proveedor)' }}</label>
+              <select v-if="nuevoCheque.tipo === 'cartera'" v-model="nuevoCheque.entidad" required>
+                <option value="">-- Seleccionar Cliente --</option>
+                <option v-for="c in clientes" :key="c.id" :value="c.nombre">{{ c.nombre }}</option>
+              </select>
+              <select v-else v-model="nuevoCheque.entidad" required>
+                <option value="">-- Seleccionar Proveedor --</option>
+                <option v-for="p in proveedores" :key="p.id" :value="p.nombre">{{ p.nombre }}</option>
+              </select>
+            </div>
+
             <div class="form-group">
               <label>Banco</label>
-              <input v-model="nuevoCheque.banco" type="text" required>
+              <input v-model="nuevoCheque.banco" type="text" placeholder="Ej: Banco Nación" required>
             </div>
+
             <div class="form-group">
               <label>Número</label>
               <input v-model="nuevoCheque.numero" type="text" required>
             </div>
+
             <div class="form-group">
               <label>Monto</label>
               <input v-model.number="nuevoCheque.monto" type="number" step="0.01" required>
             </div>
+
             <div class="form-group">
-              <label>Fecha Vencimiento</label>
+              <label>Vencimiento</label>
               <input v-model="nuevoCheque.fechaVto" type="date" required>
             </div>
-            <div class="form-group">
-              <label>Cliente / Proveedor</label>
-              <input v-model="nuevoCheque.entidad" type="text" required>
-            </div>
           </div>
+
           <div class="modal-actions">
-            <button type="button" @click="mostrarModal = false">Cancelar</button>
-            <button type="submit" class="btn-guardar">Guardar en Nube</button>
+            <button type="button" @click="mostrarModal = false" class="btn-cancelar">Cancelar</button>
+            <button type="submit" class="btn-guardar" :disabled="loading">
+              {{ loading ? 'Guardando...' : 'Guardar en Nube' }}
+            </button>
           </div>
         </form>
       </div>
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { getCheques, saveCheque, registrarMovimientoCaja } from '@/services/data';
+import { 
+  getCheques, 
+  saveCheque, 
+  registrarMovimientoCaja, 
+  getClientes, 
+  getProveedores 
+} from '@/services/data';
 
 const tabActiva = ref('cartera');
 const mostrarModal = ref(false);
 const cheques = ref([]);
+const loading = ref(false);
+
+// Listas para los selectores
+const clientes = ref([]);
+const proveedores = ref([]);
+
+// Función para obtener la fecha actual en formato YYYY-MM-DD
+const getHoy = () => new Date().toISOString().split('T')[0];
 
 const nuevoCheque = ref({
   tipo: 'cartera',
   banco: '',
   numero: '',
   monto: 0,
-  fechaVto: '',
-  entidad: '',
+  fechaVto: getHoy(), // Fecha actual por defecto
+  entidad: '', 
   estado: 'pendiente'
 });
 
-// Cargar desde Supabase
-const cargarCheques = async () => {
-  cheques.value = await getCheques();
+const cargarDatos = async () => {
+  const [dataCheques, dataClientes, dataProvs] = await Promise.all([
+    getCheques(),
+    getClientes(),
+    getProveedores()
+  ]);
+  cheques.value = dataCheques || [];
+  clientes.value = dataClientes || [];
+  proveedores.value = dataProvs || [];
 };
 
-onMounted(cargarCheques);
+onMounted(cargarDatos);
 
+const guardarNuevoCheque = async () => {
+  try {
+    loading.value = true; 
+   
+    const payload = {
+      empresa_id: 'emp_default', // Aseguramos que se guarde con el ID correcto
+      tipo: nuevoCheque.value.tipo, // 'cartera' o 'propios'
+      banco: nuevoCheque.value.banco,
+      numero: nuevoCheque.value.numero,
+      monto: nuevoCheque.value.monto,
+      emisor: nuevoCheque.value.entidad, 
+      fecha_vencimiento: nuevoCheque.value.fechaVto,
+      estado: 'CARTERA'
+    };
+
+    const resultado = await saveCheque(payload);
+    
+    if (resultado) {
+      alert("✅ Cheque registrado correctamente");
+      mostrarModal.value = false;
+      // Resetear con fecha de hoy
+      nuevoCheque.value = {
+        tipo: 'cartera', banco: '', numero: '', monto: 0,
+        fechaVto: getHoy(), entidad: '', estado: 'pendiente'
+      };
+      await cargarDatos();
+    }
+  } catch (error) {
+    alert("❌ Error: " + error.message);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// ... (Mantenemos los mismos computed: chequesFiltrados, totalCartera, etc.)
 const chequesFiltrados = computed(() => {
   return cheques.value.filter(c => c.tipo === tabActiva.value);
 });
 
 const totalCartera = computed(() => {
   return cheques.value
-    .filter(c => c.tipo === 'cartera' && c.estado === 'pendiente')
+    .filter(c => c.tipo === 'cartera' && (c.estado === 'pendiente' || c.estado === 'CARTERA'))
     .reduce((acc, curr) => acc + Number(curr.monto), 0);
 });
 
@@ -139,59 +208,15 @@ const totalVencer = computed(() => {
   const hoy = new Date();
   const proximaSemana = new Date();
   proximaSemana.setDate(hoy.getDate() + 7);
-
   return cheques.value.filter(c => {
-    const f = new Date(c.fechaVto);
-    return f >= hoy && f <= proximaSemana && c.estado === 'pendiente';
+    const f = new Date(c.fecha_vencimiento);
+    return f >= hoy && f <= proximaSemana;
   }).reduce((acc, curr) => acc + Number(curr.monto), 0);
 });
 
 const abrirModal = () => { mostrarModal.value = true; };
-
-const guardarNuevoCheque = async () => {
-  try {
-    await saveCheque({ ...nuevoCheque.value });
-    alert("Cheque guardado correctamente.");
-    mostrarModal.value = false;
-    // Reset
-    nuevoCheque.value = { tipo: 'cartera', banco: '', numero: '', monto: 0, fechaVto: '', entidad: '', estado: 'pendiente' };
-    await cargarCheques(); // Recargar lista
-  } catch (e) {
-    alert("Error al guardar");
-  }
-};
-
-const cambiarEstado = async (cheque) => {
-  const estadosCartera = ['pendiente', 'depositado', 'cobrado', 'rechazado'];
-  const estadosPropios = ['pendiente', 'pagado', 'anulado'];
-  
-  const listaEstados = cheque.tipo === 'cartera' ? estadosCartera : estadosPropios;
-  const currentIndex = listaEstados.indexOf(cheque.estado);
-  const nuevoEstado = listaEstados[(currentIndex + 1) % listaEstados.length];
-  
-  // LÓGICA DE INTEGRACIÓN CON CAJA (Ahora va a Supabase)
-  if (nuevoEstado === 'cobrado' && cheque.tipo === 'cartera') {
-    await registrarMovimientoCaja('ingreso', cheque.monto, `Cobro Cheque ${cheque.banco} Nº${cheque.numero}`, 'Cheques');
-    alert(`💰 $${cheque.monto.toLocaleString()} sumados a la Caja.`);
-  } 
-  else if (nuevoEstado === 'pagado' && cheque.tipo === 'propio') {
-    await registrarMovimientoCaja('egreso', cheque.monto, `Pago Cheque Propio ${cheque.banco} Nº${cheque.numero}`, 'Cheques');
-    alert(`💸 $${cheque.monto.toLocaleString()} restados de la Caja.`);
-  }
-
-  // Actualizar el cheque en la base de datos
-  cheque.estado = nuevoEstado;
-  await saveCheque(cheque);
-  await cargarCheques();
-};
-
-const formatDate = (d) => new Date(d).toLocaleDateString();
-const isVencido = (d) => {
-  const fecha = new Date(d);
-  const hoy = new Date();
-  hoy.setHours(0,0,0,0);
-  return fecha < hoy;
-};
+const formatDate = (d) => d ? new Date(d).toLocaleDateString() : 'S/F';
+const isVencido = (d) => d && new Date(d) < new Date().setHours(0,0,0,0);
 </script>
 
 <style scoped>
