@@ -11,16 +11,21 @@ export function getCurrentUser() {
   }
 }
 
-// LOGIN
-export async function login(email, password) {
-  const usuarios = await dataService.getUsuarios();
-  const user = usuarios.find(u => u.email === email && u.password === password);
-  
-  if (user) {
-    localStorage.setItem("contasoft_user_sesion", JSON.stringify(user));
-    return user;
+
+export async function login(email, password) {  
+  const { data: usuarios, error } = await supabase
+    .from('usuarios')
+    .select('*')
+    .eq('email', email)
+    .eq('password', password)
+    .single();
+
+  if (error || !usuarios) {
+    console.error("Error en login:", error);
+    throw new Error("Credenciales inválidas");
   }
-  throw new Error("Credenciales inválidas");
+  localStorage.setItem("contasoft_user_sesion", JSON.stringify(usuarios));
+  return usuarios;
 }
 
 // LOGOUT
