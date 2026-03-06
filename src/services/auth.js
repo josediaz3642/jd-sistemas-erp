@@ -1,7 +1,7 @@
-import { supabase } from "@/supabase"; // <--- ESTA LÍNEA ES VITAL
+import { supabase } from "@/supabase";
 import * as dataService from "./data";
+export { login as loginUser };
 
-// USUARIO ACTUAL
 export function getCurrentUser() {
   const user = localStorage.getItem("contasoft_user_sesion");
   try {

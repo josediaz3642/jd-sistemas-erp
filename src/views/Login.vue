@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { login } from '@/services/auth'; 
+import { loginUser } from '@/services/auth'; 
 
 const router = useRouter();
 const email = ref('');
@@ -9,32 +9,24 @@ const password = ref('');
 const error = ref('');
 const cargando = ref(false);
 
-// Cambiamos el nombre para evitar conflictos con la importación
 async function handleEjecutarLogin() {
-  console.log("Tipo de la función login importada:", typeof login);
-  
-  if (typeof login !== 'function') {
-    error.value = "Error crítico: El servicio de autenticación no cargó correctamente.";
-    return;
-  }
-
   if (!email.value || !password.value) return;
   
   error.value = '';
   cargando.value = true;
   
   try {
-    const user = await login(email.value, password.value);
+    // Usamos la función importada
+    const user = await loginUser(email.value, password.value);
     
-    if (!user) {
-      error.value = 'Credenciales incorrectas o usuario no encontrado';
-      return;
+    if (user) {
+      router.push('/dashboard');
+    } else {
+      error.value = 'Usuario no encontrado.';
     }
-
-    router.push('/dashboard');
   } catch (e) {
-    error.value = e.message || 'Error al conectar con el servidor.';
-    console.error("Fallo en login:", e);
+    error.value = e.message || 'Error al iniciar sesión';
+    console.error(e);
   } finally {
     cargando.value = false;
   }
