@@ -1,10 +1,14 @@
-// src/services/auth.js
+import { supabase } from "@/supabase"; // <--- ESTA LÍNEA ES VITAL
 import * as dataService from "./data";
 
 // USUARIO ACTUAL
 export function getCurrentUser() {
   const user = localStorage.getItem("contasoft_user_sesion");
-  return user ? JSON.parse(user) : null;
+  try {
+    return user ? JSON.parse(user) : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 // LOGIN
@@ -50,9 +54,10 @@ export async function deleteUser(id) {
   }
   return await dataService.deleteUser(id);
 }
-// --- CLIENTES (Agregar esta si no está) ---
+
+// --- CLIENTES ---
 export async function getClienteById(id) {
-  const { data, error } = await supabase
+  const { data, error } = await supabase // Ahora sí funcionará
     .from('clientes')
     .select('*')
     .eq('id', id)
@@ -61,7 +66,7 @@ export async function getClienteById(id) {
   return data;
 }
 
-// --- PROVEEDORES (Agregar esta por si acaso) ---
+// --- PROVEEDORES ---
 export async function getProveedorById(id) {
   const { data, error } = await supabase
     .from('proveedores')
@@ -72,7 +77,7 @@ export async function getProveedorById(id) {
   return data;
 }
 
-// --- STOCK (Agregar esta para DetalleStock.vue) ---
+// --- STOCK ---
 export async function getStockItemById(id) {
   const { data, error } = await supabase
     .from('stock')

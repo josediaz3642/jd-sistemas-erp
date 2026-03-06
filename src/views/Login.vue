@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-// Importamos 'login', que es como se llama en auth.js
 import { login } from '@/services/auth'; 
 
 const router = useRouter();
