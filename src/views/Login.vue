@@ -51,7 +51,7 @@ async function handleEjecutarLogin() {
       
       <p class="subtitle">Bienvenido de nuevo. Ingrese a su panel.</p>
 
-      <form @submit.prevent="onLogin" class="auth-form">
+    <form @submit.prevent="handleEjecutarLogin" class="auth-form">
         <div class="field">
           <label>Correo Electrónico</label>
           <input 
