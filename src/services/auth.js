@@ -92,3 +92,5 @@ export async function getStockItemById(id) {
   if (error) console.error("Error al obtener producto:", error);
   return data;
 }
+
+export const iniciarSesionFinal = login;

@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { loginUser } from '@/services/auth'; 
+import { iniciarSesionFinal } from '@/services/auth'; 
 
 const router = useRouter();
 const email = ref('');
@@ -9,28 +9,27 @@ const password = ref('');
 const error = ref('');
 const cargando = ref(false);
 
-async function handleEjecutarLogin() {
+const handleEjecutarLogin = async () => {
+  console.log("Botón presionado");
   if (!email.value || !password.value) return;
-  
+
   error.value = '';
   cargando.value = true;
-  
+
   try {
-    // Usamos la función importada
-    const user = await loginUser(email.value, password.value);
-    
+    const user = await iniciarSesionFinal(email.value, password.value);
     if (user) {
       router.push('/dashboard');
     } else {
-      error.value = 'Usuario no encontrado.';
+      error.value = 'Credenciales inválidas';
     }
   } catch (e) {
-    error.value = e.message || 'Error al iniciar sesión';
-    console.error(e);
+    error.value = e.message;
+    console.error("Error en el componente:", e);
   } finally {
     cargando.value = false;
   }
-}
+};
 </script>
 
 <template>
