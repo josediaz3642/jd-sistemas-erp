@@ -9,14 +9,21 @@ const password = ref('');
 const error = ref('');
 const cargando = ref(false);
 
-async function onLogin() {
+// Cambiamos el nombre para evitar conflictos con la importación
+async function handleEjecutarLogin() {
+  console.log("Tipo de la función login importada:", typeof login);
+  
+  if (typeof login !== 'function') {
+    error.value = "Error crítico: El servicio de autenticación no cargó correctamente.";
+    return;
+  }
+
   if (!email.value || !password.value) return;
   
   error.value = '';
   cargando.value = true;
   
   try {
-    // CAMBIO AQUÍ: Usamos 'login' en lugar de 'loginUser'
     const user = await login(email.value, password.value);
     
     if (!user) {
@@ -24,12 +31,10 @@ async function onLogin() {
       return;
     }
 
-    // Si todo va bien, redirigimos al dashboard
     router.push('/dashboard');
   } catch (e) {
-    // Si el error viene del 'throw' de auth.js, mostramos ese mensaje
     error.value = e.message || 'Error al conectar con el servidor.';
-    console.error(e);
+    console.error("Fallo en login:", e);
   } finally {
     cargando.value = false;
   }
