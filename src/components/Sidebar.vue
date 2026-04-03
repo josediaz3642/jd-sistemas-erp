@@ -30,17 +30,19 @@
         <router-link to="/facturacion" class="nav-item" @click="sidebarOpen = false">
           <span class="icon">📄</span> Ventas / Facturas
         </router-link>
+
+        <router-link to="/remitos" class="nav-item" @click="sidebarOpen = false">
+          <span class="icon">🚚</span> Remitos / Traspasos
+        </router-link>
+
         <router-link to="/caja" class="nav-item" @click="sidebarOpen = false">
           <span class="icon">🏦</span> Caja y Finanzas
         </router-link>
         <router-link to="/cheques" class="nav-item" @click="sidebarOpen = false">
           <span class="icon">🎫</span> Cheques
         </router-link>
-        <router-link to="/reportes" class="nav-item" @click="sidebarOpen = false">
-          <span class="icon">📈</span> Reportes
-        </router-link>
-	 <router-link to="/Mantenimiento" class="nav-item" @click="sidebarOpen = false">
-          <span class="icon">📈</span> Mantenimiento
+        <router-link to="/cuentas-corrientes" class="nav-item" @click="sidebarOpen = false">
+          <span class="icon">📑</span> Cuentas Corrientes
         </router-link>
 
         <div class="menu-label">Inventario</div>
@@ -48,19 +50,21 @@
           <span class="icon">📦</span> Stock
         </router-link>
         
-        <div class="menu-label">Contactos</div>
+        <div class="menu-label">Configuración</div>
+        <router-link to="/Mantenimiento" class="nav-item" @click="sidebarOpen = false">
+          <span class="icon">🛠️</span> Mantenimiento
+        </router-link>
         <router-link to="/clientes" class="nav-item" @click="sidebarOpen = false">
           <span class="icon">👥</span> Clientes
         </router-link>
         <router-link to="/proveedores" class="nav-item" @click="sidebarOpen = false">
           <span class="icon">🚚</span> Proveedores
         </router-link>
-
-        <div class="menu-sep"></div>
-        
         <router-link to="/ajustes" class="nav-item" @click="sidebarOpen = false">
           <span class="icon">⚙️</span> Ajustes
         </router-link>
+
+        <div class="menu-sep"></div>
         
         <button @click="handleLogout" class="nav-item logout-btn">
           <span class="icon">🚪</span> Cerrar Sesión
@@ -91,13 +95,12 @@ const handleLogout = () => {
 </script>
 
 <style scoped>
-/* Botón Hamburguesa */
 .btn-hamburguesa {
-  display: none; /* Oculto en PC */
+  display: none;
   position: fixed;
   top: 10px;
   left: 10px;
-  z-index: 2000; /* Super alto */
+  z-index: 2000;
   padding: 10px 15px;
   background: #2563eb;
   color: white;
@@ -106,11 +109,12 @@ const handleLogout = () => {
   font-weight: bold;
   cursor: pointer;
 }
+
 .sidebar {
   width: 260px;
   height: 100vh;
   background: #0f172a;
-  color: #94a3b8; /* Gris azulado suave en lugar de blanco puro */
+  color: #94a3b8;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -119,14 +123,11 @@ const handleLogout = () => {
   z-index: 1500;
   transition: transform 0.3s ease;
 }
-.brand span, .nav-item.router-link-active {
-  color: white;
-}
 
-/* Estilos de navegación */
-.menu { flex: 1; padding: 15px; display: flex; flex-direction: column; gap: 5px; overflow-y: auto; }
-.brand { padding: 25px 20px; display: flex; align-items: center; gap: 10px; }
+.brand { padding: 25px 20px; display: flex; align-items: center; gap: 10px; color: white; }
 .logo-box { background: #2563eb; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+
+.menu { flex: 1; padding: 15px; display: flex; flex-direction: column; gap: 5px; overflow-y: auto; }
 .menu-label { font-size: 0.7rem; color: #64748b; margin: 15px 0 5px 10px; text-transform: uppercase; }
 
 .nav-item {
@@ -138,6 +139,10 @@ const handleLogout = () => {
   text-decoration: none;
   border-radius: 8px;
   cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  font-size: 0.9rem;
 }
 
 .nav-item:hover, .router-link-active {
@@ -145,19 +150,13 @@ const handleLogout = () => {
   color: white;
 }
 
-.logout-btn { background: none; border: none; width: 100%; color: #ef4444; margin-top: 20px; }
+.logout-btn { color: #ef4444; margin-top: 20px; }
+.menu-sep { height: 1px; background: #1e293b; margin: 10px 0; }
 
-/* MOBILE DESIGN */
 @media (max-width: 768px) {
   .btn-hamburguesa { display: block; }
   .sidebar { transform: translateX(-100%); }
   .sidebar.is-open { transform: translateX(0); }
-  
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 1400;
-  }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1400; }
 }
 </style>

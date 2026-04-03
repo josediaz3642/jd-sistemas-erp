@@ -20,6 +20,7 @@ import Caja from "@/views/Caja.vue";
 import Ajustes from "@/views/Ajustes.vue";
 import NuevaCompra from "@/views/NuevaCompra.vue";
 import Reportes from "@/views/Reportes.vue";
+import Remitos from "@/views/Remitos.vue";
 
 const routes = [
   { path: "/", name: "LoginRoot", component: Login },
@@ -35,6 +36,7 @@ const routes = [
   { path: "/clientes", component: Clientes },
   { path: "/cliente/nuevo", component: DetalleCliente },
   { path: "/cliente/:id", component: ClienteDetalle },
+  { path: '/cuentas-corrientes', name: 'CuentasCorrientes', component: () => import('../views/ResumenCuentas.vue') },
   { path: "/stock", component: Stock },
   { path: "/stock/nuevo", component: () => import("@/views/DetalleStock.vue") },
   { path: "/stock/:id", component: () => import("@/views/DetalleStock.vue") },
@@ -43,7 +45,10 @@ const routes = [
   { path: "/proveedor/:id", component: DetalleProveedor },
   { path: "/compras/nueva", component: NuevaCompra },
   { path: "/cheques", component: Cheques },
-  { path: "/mantenimiento",component: Mantenimiento,meta: { role: ["admin"] }}
+  { path: "/mantenimiento", component: Mantenimiento, meta: { role: ["admin"] } },
+  // LA RUTA DE REMITOS AHORA ESTÁ DENTRO DEL ARRAY
+  { path: "/remitos", name: "Remitos", component: Remitos },
+  { path: "/remito/:id", name: "DetalleRemito", component: () => import("@/views/DetalleRemito.vue") }
 ];
 
 const router = createRouter({
@@ -51,21 +56,18 @@ const router = createRouter({
   routes
 });
 
-// GUARDIA CORREGIDA SIN ERRORES DE SINTAXIS
+// GUARDIA SIN ERRORES
 router.beforeEach((to, from, next) => {
   const user = getCurrentUser();
   
-  // 1. Si va a login o raíz, permitir siempre
   if (to.path === "/login" || to.path === "/") {
     return next();
   }
 
-  // 2. Si no hay usuario, mandar al login
   if (!user) {
     return next("/login");
   }
 
-  // 3. Verificación de roles
   if (to.meta?.role && !to.meta.role.includes(user.rol)) {
     return next("/dashboard");
   }

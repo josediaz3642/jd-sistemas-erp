@@ -63,41 +63,52 @@
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
-import {
-  getFacturasCliente,
-  getPagosCliente,
-  getItemsVendidosCliente,
-  getClienteById // Función específica para nube
+import { 
+  getFacturasCliente, 
+  getPagosCliente, 
+  getItemsVendidosCliente,  
+  getClienteById, 
+  getNotasByCliente 
 } from "@/services/data";
 
 const route = useRoute();
-const id = route.params.id; // En Supabase suele ser UUID (string) o ID (int)
+const id = route.params.id;
 
 const cliente = ref(null);
 const facturas = ref([]);
 const pagos = ref([]);
 const items = ref([]);
+const notas = ref([]);
 const loading = ref(true);
 
 onMounted(async () => {
   loading.value = true;
   try {
-    // Ejecutamos las consultas en paralelo para máxima velocidad
-    const [cData, fData, pData, iData] = await Promise.all([
+    // 1. Cargamos todos los datos en paralelo
+    const [cData, fData, pData, iData, nData] = await Promise.all([
       getClienteById(id),
       getFacturasCliente(id),
       getPagosCliente(id),
-      getItemsVendidosCliente(id)
+      getItemsVendidosCliente(id),
+      getNotasByCliente(id)
     ]);
 
+    // 2. Asignamos los valores (dentro del try para evitar errores de referencia)
     cliente.value = cData;
     facturas.value = fData || [];
     pagos.value = pData || [];
     items.value = iData || [];
+    notas.value = nData || [];
+
+    // 3. Debug en consola para verificar qué llega de la base de datos
+    console.log("📊 DATOS CARGADOS:");
+    console.log("Facturas:", facturas.value.length);
+    console.log("Notas:", notas.value.length);
+    console.log("Pagos:", pagos.value.length);
+
   } catch (e) {
     console.error("Error al cargar el resumen:", e);
   } finally {
@@ -105,11 +116,27 @@ onMounted(async () => {
   }
 });
 
-// El saldo es la diferencia entre el total de facturas y el total de pagos
 const saldo = computed(() => {
-  const totalFacturado = facturas.value.reduce((acc, f) => acc + (f.total || 0), 0);
-  const totalPagado = pagos.value.reduce((acc, p) => acc + (p.monto || 0), 0);
-  return totalFacturado - totalPagado;
+  // Suma de Facturas
+  const totalFacturas = facturas.value.reduce((acc, f) => acc + (Number(f.total) || 0), 0);
+
+  // Suma de Pagos realizados por el cliente
+  const totalPagos = pagos.value.reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
+
+  // Notas de Débito (Aumentan la deuda)
+  const totalND = notas.value
+    .filter(n => n.tipo_comprobante === 'ND')
+    .reduce((acc, n) => acc + (Number(n.monto) || 0), 0);
+
+  // Notas de Crédito (Disminuyen la deuda)
+  const totalNC = notas.value
+    .filter(n => n.tipo_comprobante === 'NC')
+    .reduce((acc, n) => acc + (Number(n.monto) || 0), 0);
+
+  const resultado = (totalFacturas + totalND) - (totalPagos + totalNC);
+  
+  console.log("🧮 Cálculo de Saldo:", { totalFacturas, totalND, totalPagos, totalNC, resultado });
+  return resultado;
 });
 
 function imprimirResumen() {

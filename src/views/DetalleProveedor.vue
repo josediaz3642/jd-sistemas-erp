@@ -47,6 +47,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+// Asegúrate de que data.js tenga estos exports
 import { getProveedorById, saveProveedor } from "@/services/data";
 
 const route = useRoute();
@@ -61,7 +62,7 @@ const proveedor = ref({
   cuit: ""
 });
 
-const isNuevo = computed(() => route.params.id === "nuevo");
+const isNuevo = computed(() => route.params.id === "nuevo" || !route.params.id);
 
 onMounted(async () => {
   if (!isNuevo.value) {
@@ -70,6 +71,9 @@ onMounted(async () => {
       const data = await getProveedorById(route.params.id);
       if (data) {
         proveedor.value = { ...data };
+      } else {
+        console.warn("No se encontró el proveedor");
+        router.push("/proveedores");
       }
     } catch (e) {
       console.error("Error al cargar proveedor:", e);
@@ -84,7 +88,6 @@ async function guardar() {
   
   guardando.value = true;
   try {
-    // saveProveedor ahora hace un upsert asíncrono en Supabase
     await saveProveedor(proveedor.value);
     router.push("/proveedores");
   } catch (e) {
@@ -108,14 +111,8 @@ function volver() {
   gap: 20px;
   align-items: center;
 }
-
-.header {
-  width: 100%;
-  max-width: 500px;
-}
-
-.content-form {
-  background: white; /* Mejoramos legibilidad */
+.card-glass {
+  background: white;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   padding: 24px;
@@ -123,65 +120,12 @@ function volver() {
   max-width: 500px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
-
-.field {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 16px;
-}
-
-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #475569;
-  margin-bottom: 6px;
-}
-
-input {
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #1e293b;
-  font-size: 1rem;
-  transition: all 0.2s;
-}
-
-input:focus {
-  border-color: #2563eb;
-  background: white;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.btn-primary {
-  background: #2563eb;
-  border: none;
-  color: white;
-  padding: 12px 20px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: bold;
-  flex: 1;
-}
-
-.btn-primary:disabled {
-  background: #94a3b8;
-  cursor: not-allowed;
-}
-
-.btn {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  padding: 12px 20px;
-  border-radius: 10px;
-  cursor: pointer;
-  color: #475569;
-}
+.header h1 { margin: 0; font-size: 1.5rem; color: #1e293b; text-align: center; }
+.field { display: flex; flex-direction: column; margin-bottom: 16px; }
+label { font-size: 0.9rem; font-weight: 600; color: #475569; margin-bottom: 6px; }
+input { padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 1rem; }
+input:focus { border-color: #2563eb; outline: none; background: white; }
+.actions { display: flex; gap: 12px; margin-top: 20px; }
+.btn-primary { background: #2563eb; color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; flex: 1; }
+.btn { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 12px; border-radius: 10px; cursor: pointer; }
 </style>

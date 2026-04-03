@@ -17,8 +17,8 @@
     </div>
 
     <div class="tabs">
-      <button @click="tabActiva = 'cartera'" :class="{ active: tabActiva === 'cartera' }">En Cartera</button>
-      <button @click="tabActiva = 'propios'" :class="{ active: tabActiva === 'propios' }">Propios / Emitidos</button>
+      <button @click="tabActiva = 'cartera'" :class="{ active: tabActiva === 'cartera' }">Recibidos (Cartera)</button>
+      <button @click="tabActiva = 'propios'" :class="{ active: tabActiva === 'propios' }">Emitidos (Propios)</button>
     </div>
 
     <div class="table-container card">
@@ -31,7 +31,7 @@
             <th>{{ tabActiva === 'cartera' ? 'Cliente' : 'Destino' }}</th>
             <th class="text-right">Monto</th>
             <th>Estado</th>
-            <th>Acciones</th>
+            <th class="text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -44,10 +44,10 @@
             <td>{{ cheque.emisor }}</td>
             <td class="text-right font-bold">${{ Number(cheque.monto).toLocaleString() }}</td>
             <td>
-              <span :class="'status-badge ' + cheque.estado">{{ cheque.estado }}</span>
+              <span :class="'status-badge ' + cheque.estado.toLowerCase()">{{ cheque.estado }}</span>
             </td>
-            <td>
-              <button @click="cambiarEstado(cheque)" class="btn-edit" title="Cambiar Estado">⚡</button>
+            <td class="text-center">
+              <button @click="cambiarEstado(cheque)" class="btn-edit" title="Siguiente Estado">⚡</button>
             </td>
           </tr>
         </tbody>
@@ -72,13 +72,14 @@
 
             <div class="form-group">
               <label>{{ nuevoCheque.tipo === 'cartera' ? 'Recibido de (Cliente)' : 'Entregado a (Proveedor)' }}</label>
-              <select v-if="nuevoCheque.tipo === 'cartera'" v-model="nuevoCheque.entidad" required>
-                <option value="">-- Seleccionar Cliente --</option>
-                <option v-for="c in clientes" :key="c.id" :value="c.nombre">{{ c.nombre }}</option>
-              </select>
-              <select v-else v-model="nuevoCheque.entidad" required>
-                <option value="">-- Seleccionar Proveedor --</option>
-                <option v-for="p in proveedores" :key="p.id" :value="p.nombre">{{ p.nombre }}</option>
+              <select v-model="nuevoCheque.entidad" required>
+                <option value="">-- Seleccionar --</option>
+                <template v-if="nuevoCheque.tipo === 'cartera'">
+                  <option v-for="c in clientes" :key="c.id" :value="c.nombre">{{ c.nombre }}</option>
+                </template>
+                <template v-else>
+                  <option v-for="p in proveedores" :key="p.id" :value="p.nombre">{{ p.nombre }}</option>
+                </template>
               </select>
             </div>
 
@@ -106,7 +107,7 @@
           <div class="modal-actions">
             <button type="button" @click="mostrarModal = false" class="btn-cancelar">Cancelar</button>
             <button type="submit" class="btn-guardar" :disabled="loading">
-              {{ loading ? 'Guardando...' : 'Guardar en Nube' }}
+              {{ loading ? 'Guardando...' : 'Confirmar Registro' }}
             </button>
           </div>
         </form>
@@ -114,6 +115,7 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { 
@@ -128,12 +130,9 @@ const tabActiva = ref('cartera');
 const mostrarModal = ref(false);
 const cheques = ref([]);
 const loading = ref(false);
-
-// Listas para los selectores
 const clientes = ref([]);
 const proveedores = ref([]);
 
-// Función para obtener la fecha actual en formato YYYY-MM-DD
 const getHoy = () => new Date().toISOString().split('T')[0];
 
 const nuevoCheque = ref({
@@ -141,31 +140,42 @@ const nuevoCheque = ref({
   banco: '',
   numero: '',
   monto: 0,
-  fechaVto: getHoy(), // Fecha actual por defecto
+  fechaVto: getHoy(),
   entidad: '', 
-  estado: 'pendiente'
+  estado: 'CARTERA'
 });
 
+// --- CARGA DE DATOS ---
 const cargarDatos = async () => {
-  const [dataCheques, dataClientes, dataProvs] = await Promise.all([
-    getCheques(),
-    getClientes(),
-    getProveedores()
-  ]);
-  cheques.value = dataCheques || [];
-  clientes.value = dataClientes || [];
-  proveedores.value = dataProvs || [];
+  try {
+    const [dataCheques, dataClientes, dataProvs] = await Promise.all([
+      getCheques(),
+      getClientes(),
+      getProveedores()
+    ]);
+    cheques.value = dataCheques || [];
+    clientes.value = dataClientes || [];
+    proveedores.value = dataProvs || [];
+  } catch (error) {
+    console.error("Error al cargar datos:", error);
+  }
 };
 
 onMounted(cargarDatos);
 
+// --- ACCIONES ---
 const guardarNuevoCheque = async () => {
   try {
-    loading.value = true; 
-   
+    loading.value = true;
+    
+    // Buscar la entidad para obtener su ID
+    const lista = nuevoCheque.value.tipo === 'cartera' ? clientes.value : proveedores.value;
+    const encontrada = lista.find(e => e.nombre === nuevoCheque.value.entidad);
+
     const payload = {
-      empresa_id: 'emp_default', // Aseguramos que se guarde con el ID correcto
-      tipo: nuevoCheque.value.tipo, // 'cartera' o 'propios'
+      empresa_id: 'emp_default',
+      cliente_id: nuevoCheque.value.tipo === 'cartera' ? encontrada?.id : null,
+      tipo: nuevoCheque.value.tipo,
       banco: nuevoCheque.value.banco,
       numero: nuevoCheque.value.numero,
       monto: nuevoCheque.value.monto,
@@ -177,13 +187,9 @@ const guardarNuevoCheque = async () => {
     const resultado = await saveCheque(payload);
     
     if (resultado) {
-      alert("✅ Cheque registrado correctamente");
+      alert("✅ Cheque registrado y vinculado correctamente");
       mostrarModal.value = false;
-      // Resetear con fecha de hoy
-      nuevoCheque.value = {
-        tipo: 'cartera', banco: '', numero: '', monto: 0,
-        fechaVto: getHoy(), entidad: '', estado: 'pendiente'
-      };
+      nuevoCheque.value = { tipo: 'cartera', banco: '', numero: '', monto: 0, fechaVto: getHoy(), entidad: '', estado: 'CARTERA' };
       await cargarDatos();
     }
   } catch (error) {
@@ -193,37 +199,61 @@ const guardarNuevoCheque = async () => {
   }
 };
 
-// ... (Mantenemos los mismos computed: chequesFiltrados, totalCartera, etc.)
-const chequesFiltrados = computed(() => {
-  return cheques.value.filter(c => c.tipo === tabActiva.value);
-});
+const cambiarEstado = async (cheque) => {
+  const estados = ['CARTERA', 'DEPOSITADO', 'COBRADO', 'ANULADO'];
+  const indiceActual = estados.indexOf(cheque.estado.toUpperCase());
+  const nuevoEstado = estados[(indiceActual + 1) % estados.length];
+
+  if (!confirm(`¿Cambiar estado de Cheque N° ${cheque.numero} a ${nuevoEstado}?`)) return;
+
+  try {
+    loading.value = true;
+    const resultado = await saveCheque({ ...cheque, estado: nuevoEstado });
+
+    if (resultado) {
+      if (nuevoEstado === 'COBRADO') {
+        await registrarMovimientoCaja('ingreso', cheque.monto, `Cobro Cheque N° ${cheque.numero}`, 'Finanzas');
+      }
+      await cargarDatos();
+    }
+  } catch (error) {
+    alert("❌ Error al actualizar: " + error.message);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// --- COMPUTED ---
+const chequesFiltrados = computed(() => cheques.value.filter(c => c.tipo === tabActiva.value));
 
 const totalCartera = computed(() => {
   return cheques.value
-    .filter(c => c.tipo === 'cartera' && (c.estado === 'pendiente' || c.estado === 'CARTERA'))
+    .filter(c => c.tipo === 'cartera' && (c.estado === 'CARTERA' || c.estado === 'DEPOSITADO'))
     .reduce((acc, curr) => acc + Number(curr.monto), 0);
 });
 
 const totalVencer = computed(() => {
   const hoy = new Date();
-  const proximaSemana = new Date();
-  proximaSemana.setDate(hoy.getDate() + 7);
+  const limite = new Date();
+  limite.setDate(hoy.getDate() + 7);
   return cheques.value.filter(c => {
     const f = new Date(c.fecha_vencimiento);
-    return f >= hoy && f <= proximaSemana;
+    return f >= hoy && f <= limite && c.estado !== 'COBRADO';
   }).reduce((acc, curr) => acc + Number(curr.monto), 0);
 });
 
+// --- HELPERS ---
 const abrirModal = () => { mostrarModal.value = true; };
-const formatDate = (d) => d ? new Date(d).toLocaleDateString() : 'S/F';
+const formatDate = (d) => d ? new Date(d).toLocaleDateString('es-AR') : 'S/F';
 const isVencido = (d) => d && new Date(d) < new Date().setHours(0,0,0,0);
 </script>
 
 <style scoped>
-/* Tus estilos se mantienen, solo asegúrate de que .card exista en tu CSS global o añade: */
 .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+.vencido { color: #dc2626; font-weight: bold; }
+.status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+.status-badge.cartera { background: #fef3c7; color: #92400e; }
 .status-badge.depositado { background: #dbeafe; color: #1e40af; }
-.status-badge.pagado { background: #d1fae5; color: #065f46; }
+.status-badge.cobrado { background: #d1fae5; color: #065f46; }
 .status-badge.anulado { background: #f3f4f6; color: #374151; }
-/* ... resto de estilos del archivo original ... */
 </style>

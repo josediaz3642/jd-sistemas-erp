@@ -8,19 +8,16 @@
         <a @click.prevent="go('/clientes')" :class="{ active: isActive('/clientes') }">Clientes</a>
         <a @click.prevent="go('/proveedores')" :class="{ active: isActive('/proveedores') }">Proveedores</a>
         <a @click.prevent="go('/facturacion')" :class="{ active: isActive('/facturacion') }">Facturación</a>
+        
+        <a @click.prevent="go('/remitos')" :class="{ active: isActive('/remitos') }">Remitos</a>
+        
         <a @click.prevent="go('/stock')" :class="{ active: isActive('/stock') }">Stock</a>
-	 <a @click.prevent="go('/Mantenimiento')" :class="{ active: isActive('/Mantenimiento') }">Stock</a>
+        <a @click.prevent="go('/Mantenimiento')" :class="{ active: isActive('/Mantenimiento') }">Mantenimiento</a>
         <a @click.prevent="go('/cheques')" :class="{ active: isActive('/cheques') }">Cheques</a>
       </div>
     </div>
-
-    <div class="row">
-      <div class="kv">Hola, {{ user?.nombre || 'Invitado' }}</div>
-      <button class="btn secondary" @click="logout">Salir</button>
-    </div>
-  </nav>
+    </nav>
 </template>
-
 <script setup>
 import { computed } from "vue";
 import { useRouter, useRoute } from "vue-router";

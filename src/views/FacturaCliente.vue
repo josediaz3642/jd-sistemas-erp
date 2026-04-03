@@ -70,7 +70,13 @@
 <script setup>
 import { ref, onMounted, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { getClientes, getStockItems, getNextNumeroFactura, saveFactura } from "@/services/data";
+// Importamos las funciones asegurándonos que coincidan con data.js
+import { 
+  getClientes, 
+  getStockItems, 
+  getNextNumeroFactura, 
+  saveFactura 
+} from "@/services/data";
 
 const router = useRouter();
 const route = useRoute();
@@ -79,7 +85,7 @@ const clientes = ref([]);
 const stock = ref([]);
 
 const factura = reactive({
-  numero_factura: "",
+  numero: "", // Cambiado de numero_factura a numero para matchear con Supabase
   cliente_id: "",
   cliente_nombre: "",
   items: [],
@@ -95,12 +101,14 @@ onMounted(async () => {
     clientes.value = cli;
     stock.value = prod;
 
+    // Si es una factura nueva, traemos el número correlativo
     if (route.params.id === 'nuevo' || !route.params.id) {
-      factura.numero_factura = await getNextNumeroFactura();
+      const proximoNumero = await getNextNumeroFactura();
+      factura.numero = proximoNumero;
       agregarItem();
     }
   } catch (err) {
-    console.error("Error al inicializar:", err);
+    console.error("Error al inicializar factura:", err);
   }
 });
 
@@ -128,7 +136,7 @@ function actualizarItem(index) {
 }
 
 function calcularTotales() {
-  const sub = factura.items.reduce((acc, i) => acc + (i.cantidad * i.precio), 0);
+  const sub = factura.items.reduce((acc, i) => acc + (Number(i.cantidad) * Number(i.precio)), 0);
   factura.subtotal = sub;
   factura.iva = sub * 0.21;
   factura.total = sub * 1.21;
@@ -136,15 +144,19 @@ function calcularTotales() {
 
 async function guardar() {
   if (!factura.cliente_id) return alert("Selecciona un cliente");
-  if (factura.items.length === 0) return alert("Agrega al menos un producto");
+  if (factura.items.length === 0 || !factura.items[0].producto_id) {
+    return alert("Agrega al menos un producto válido");
+  }
 
   guardando.value = true;
   try {
+    // Enviamos el objeto factura directamente
     await saveFactura(factura);
-    router.push("/facturacion");
+    alert("Factura emitida con éxito");
+    router.push("/facturacion"); 
   } catch (error) {
-    alert("Error al guardar factura");
-    console.error(error);
+    console.error("Error en guardar:", error);
+    alert("No se pudo guardar la factura. Revisa la consola.");
   } finally {
     guardando.value = false;
   }
@@ -170,4 +182,5 @@ async function guardar() {
 .btn-cancelar { background: #f1f5f9; color: #475569; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; flex: 1; }
 .btn-add { background: #f8fafc; border: 1px dashed #cbd5e1; width: 100%; padding: 12px; border-radius: 8px; cursor: pointer; margin-top: 10px; color: #2563eb; font-weight: 600; }
 .btn-delete { color: #ef4444; background: none; border: none; font-size: 1.5rem; cursor: pointer; }
+
 </style>
