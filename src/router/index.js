@@ -46,9 +46,11 @@ const routes = [
   { path: "/compras/nueva", component: NuevaCompra },
   { path: "/cheques", component: Cheques },
   { path: "/mantenimiento", component: Mantenimiento, meta: { role: ["admin"] } },
-  // LA RUTA DE REMITOS AHORA ESTÁ DENTRO DEL ARRAY
-  { path: "/remitos", name: "Remitos", component: Remitos },
-  { path: "/remito/:id", name: "DetalleRemito", component: () => import("@/views/DetalleRemito.vue") }
+  { path: "/remitos",name: "Remitos", component: Remitos },
+  { path: "/remitos/nuevo",name: "NuevoRemito", component: () => import("@/views/DetalleRemito.vue") 
+  },
+  { path: "/remitos/:id", name: "DetalleRemito",component: () => import("@/views/DetalleRemito.vue") 
+  }
 ];
 
 const router = createRouter({

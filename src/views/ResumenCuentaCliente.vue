@@ -5,7 +5,11 @@
         <div class="avatar">{{ cliente.nombre.charAt(0) }}</div>
         <div>
           <h1>{{ cliente.nombre }}</h1>
-          <p>{{ cliente.cuit || 'Sin CUIT' }} | {{ cliente.direccion || 'Sin dirección' }}</p>
+          <p>
+            {{ cliente.nro_documento || 'Sin Documento' }} | 
+            {{ cliente.direccion || 'Sin dirección' }}
+          </p>
+          <p class="phone-label">📞 {{ cliente.telefono || 'Sin teléfono' }}</p>
         </div>
       </div>
       <div class="saldo-card" :class="{ 'saldo-deudor': saldo > 0 }">
@@ -31,6 +35,15 @@
             <p>Pagos Recibidos</p>
           </div>
         </div>
+        
+        <button 
+          v-if="cliente && cliente.telefono" 
+          @click="enviarWhatsApp" 
+          class="btn-whatsapp-full"
+        >
+          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="20" />
+          Enviar Estado de Cuenta
+        </button>
       </section>
 
       <section class="items-section glass-card">
@@ -63,6 +76,7 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
@@ -87,7 +101,6 @@ const loading = ref(true);
 onMounted(async () => {
   loading.value = true;
   try {
-    // 1. Cargamos todos los datos en paralelo
     const [cData, fData, pData, iData, nData] = await Promise.all([
       getClienteById(id),
       getFacturasCliente(id),
@@ -96,18 +109,11 @@ onMounted(async () => {
       getNotasByCliente(id)
     ]);
 
-    // 2. Asignamos los valores (dentro del try para evitar errores de referencia)
     cliente.value = cData;
     facturas.value = fData || [];
     pagos.value = pData || [];
     items.value = iData || [];
     notas.value = nData || [];
-
-    // 3. Debug en consola para verificar qué llega de la base de datos
-    console.log("📊 DATOS CARGADOS:");
-    console.log("Facturas:", facturas.value.length);
-    console.log("Notas:", notas.value.length);
-    console.log("Pagos:", pagos.value.length);
 
   } catch (e) {
     console.error("Error al cargar el resumen:", e);
@@ -117,34 +123,54 @@ onMounted(async () => {
 });
 
 const saldo = computed(() => {
-  // Suma de Facturas
   const totalFacturas = facturas.value.reduce((acc, f) => acc + (Number(f.total) || 0), 0);
-
-  // Suma de Pagos realizados por el cliente
   const totalPagos = pagos.value.reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
-
-  // Notas de Débito (Aumentan la deuda)
-  const totalND = notas.value
-    .filter(n => n.tipo_comprobante === 'ND')
-    .reduce((acc, n) => acc + (Number(n.monto) || 0), 0);
-
-  // Notas de Crédito (Disminuyen la deuda)
-  const totalNC = notas.value
-    .filter(n => n.tipo_comprobante === 'NC')
-    .reduce((acc, n) => acc + (Number(n.monto) || 0), 0);
-
-  const resultado = (totalFacturas + totalND) - (totalPagos + totalNC);
-  
-  console.log("🧮 Cálculo de Saldo:", { totalFacturas, totalND, totalPagos, totalNC, resultado });
-  return resultado;
+  const totalND = notas.value.filter(n => n.tipo_comprobante === 'ND').reduce((acc, n) => acc + (Number(n.monto) || 0), 0);
+  const totalNC = notas.value.filter(n => n.tipo_comprobante === 'NC').reduce((acc, n) => acc + (Number(n.monto) || 0), 0);
+  return (totalFacturas + totalND) - (totalPagos + totalNC);
 });
 
-function imprimirResumen() {
-  window.print();
+// FUNCIÓN WHATSAPP PROFESIONAL
+function enviarWhatsApp() {
+  if (!cliente.value || !cliente.value.telefono) return;
+  
+  const num = cliente.value.telefono.replace(/\D/g, '');
+  const mensaje = `*RESUMEN DE CUENTA - CONTASOFT ERP*\n\n` +
+                  `Hola *${cliente.value.nombre}*,\n` +
+                  `Te informamos tu estado de cuenta actualizado:\n\n` +
+                  `💰 *Saldo Actual: $${saldo.value.toLocaleString()}*\n` +
+                  `📊 Facturas: ${facturas.value.length}\n` +
+                  `✅ Pagos: ${pagos.value.length}\n\n` +
+                  `Si tienes dudas, por favor contáctanos.`;
+  
+  const url = `https://wa.me/${num}?text=${encodeURIComponent(mensaje)}`;
+  window.open(url, '_blank');
 }
+
+function imprimirResumen() { window.print(); }
 </script>
 
 <style scoped>
+.phone-label { font-size: 0.8rem; color: #64748b; margin-top: 5px; }
+
+.btn-whatsapp-full {
+  background: #22c55e;
+  color: white;
+  border: none;
+  padding: 15px;
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: transform 0.2s;
+}
+
+.btn-whatsapp-full:hover {
+  transform: scale(1.02);
+  background: #16a34a;
 .resumen-container {
   max-width: 1000px;
   margin: 0 auto;

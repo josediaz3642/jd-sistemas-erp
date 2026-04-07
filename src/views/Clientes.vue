@@ -33,6 +33,15 @@
             <td :class="c.saldo > 0 ? 'deuda' : 'a-favor'">
               ${{ (c.saldo || 0).toLocaleString() }}
             </td>
+<td>
+  <button 
+    @click="enviarWhatsApp(c)" 
+    class="btn-wa-tabla"
+    title="Enviar WhatsApp"
+  >
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="20" />
+  </button>
+</td>
             <td>
               {{
                 obtenerResumen(c).ultima
@@ -119,7 +128,25 @@ const modalConfig = ref({
   clienteId: null,
   nombre: ''
 });
+// Dentro del <script setup> de Clientes.vue
 
+function enviarWhatsApp(cliente) {
+  if (!cliente.telefono) {
+    alert("Este cliente no tiene un número de teléfono registrado.");
+    return;
+  }
+  
+  // Limpiamos el número (solo dejamos dígitos)
+  const numeroLimpio = cliente.telefono.replace(/\D/g, '');
+  
+  // Mensaje predeterminado para el listado general
+  const mensaje = `Hola *${cliente.nombre}*, te saludamos de JD Sistemas. ¿Cómo podemos ayudarte?`;
+  
+  const url = `https://wa.me/${numeroLimpio}?text=${encodeURIComponent(mensaje)}`;
+  
+  // Abrir en pestaña nueva
+  window.open(url, '_blank');
+}
 // FUNCIÓN DE CARGA ÚNICA (Corregida)
 const cargarDatos = async () => {
   try {
@@ -197,6 +224,25 @@ const rankingClientes = computed(() => {
 </script>
 
 <style scoped>
+.btn-wa-tabla {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  transition: background 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-wa-tabla:hover {
+  background: #dcfce7; /* Un verde muy clarito */
+}
+
+.btn-wa-tabla img {
+  display: block;
+}
 .page { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; }
 .card-glass { backdrop-filter: blur(15px); background: rgba(255, 255, 255, 0.1); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1); padding: 20px; }

@@ -78,7 +78,14 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { logoutUser } from '@/services/auth';
+import { getCurrentUser } from '@/services/auth';
+const user = getCurrentUser();
 
+// Función para verificar si tiene permiso
+const tieneAcceso = (area) => {
+  if (user.rol === 'admin') return true; // El admin ve TODO
+  return user.accesos?.includes(area);
+};
 const router = useRouter();
 const sidebarOpen = ref(false);
 

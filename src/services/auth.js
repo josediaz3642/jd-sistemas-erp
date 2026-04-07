@@ -1,96 +1,83 @@
 import { supabase } from "@/supabase";
-import * as dataService from "./data";
-export { login as loginUser };
 
+const SESION_KEY = "contasoft_user_sesion";
+
+// --- HELPERS DE SESIÓN ---
 export function getCurrentUser() {
-  const user = localStorage.getItem("contasoft_user_sesion");
+  const user = localStorage.getItem(SESION_KEY);
   try {
     return user ? JSON.parse(user) : null;
   } catch (e) {
+    localStorage.removeItem(SESION_KEY); 
     return null;
   }
 }
 
+export function logoutUser() {
+  localStorage.removeItem(SESION_KEY);
+  // Redirección forzada para limpiar estado de Vue
+  window.location.href = "/login"; 
+}
 
-export async function login(email, password) {  
-  const { data: usuarios, error } = await supabase
+export { login as loginUser }; 
+export const iniciarSesionFinal = login;
+// --- LOGIN (AUTENTICACIÓN) ---
+export async function login(email, password) {
+  // 1. Buscamos al usuario solo por email para evitar errores 406/RLS
+  const { data: usuario, error } = await supabase
     .from('usuarios')
     .select('*')
     .eq('email', email)
-    .eq('password', password)
-    .single();
+    .maybeSingle(); // No lanza error si no encuentra nada
 
-  if (error || !usuarios) {
-    console.error("Error en login:", error);
-    throw new Error("Credenciales inválidas");
+  if (error) {
+    console.error("Error JD Sistemas (DB Login):", error.message);
+    throw new Error("Error de conexión con la base de datos");
   }
-  localStorage.setItem("contasoft_user_sesion", JSON.stringify(usuarios));
-  return usuarios;
+
+  // 2. Validaciones manuales
+  if (!usuario) {
+    throw new Error("El email no está registrado");
+  }
+
+  if (usuario.password !== password) { // String plano para desarrollo
+    throw new Error("Contraseña incorrecta");
+  }
+
+  // 3. Guardar Sesión y retornar
+  localStorage.setItem(SESION_KEY, JSON.stringify(usuario));
+  return usuario;
 }
 
-// LOGOUT
-export function logoutUser() {
-  localStorage.removeItem("contasoft_user_sesion");
-}
 
-// REGISTRO
 export async function registerUser(userData) {
-  const usuarios = await dataService.getUsuarios();
-  if (usuarios.some(u => u.email === userData.email)) {
-    throw new Error("El email ya está registrado");
+  try {
+    const nuevoEmpresaId = 'emp_' + Date.now();
+
+    const nuevoUsuario = {
+      nombre: userData.nombre,
+      apellido: userData.apellido, // NUEVO
+      email: userData.email,
+      password: userData.password,
+      telefono: userData.telefono, // NUEVO
+      nro_documento: userData.nro_documento, // NUEVO
+      rol: 'admin',
+      empresa_id: nuevoEmpresaId,
+      estado: 'activo',
+      // Preferencias de envío
+      prefiere_resumen_email: userData.prefiere_resumen_email || true,
+      prefiere_resumen_whatsapp: userData.prefiere_resumen_whatsapp || false
+    };
+
+    const { data, error } = await supabase
+      .from('usuarios')
+      .insert([nuevoUsuario])
+      .select()
+      .single();
+
+    if (error) throw new Error("Error al crear cuenta: " + error.message);
+    return data;
+  } catch (err) {
+    throw err;
   }
-
-  const nuevo = {
-    nombre: userData.nombre,
-    email: userData.email,
-    password: userData.password, 
-    rol: "admin",
-    empresa_id: userData.empresaId || "emp_" + Date.now()
-  };
-
-  return await dataService.saveUsuario(nuevo);
 }
-
-// ELIMINAR
-export async function deleteUser(id) {
-  const currentUser = getCurrentUser();
-  if (currentUser && currentUser.id === id) {
-    throw new Error("No puedes eliminar tu propio usuario");
-  }
-  return await dataService.deleteUser(id);
-}
-
-// --- CLIENTES ---
-export async function getClienteById(id) {
-  const { data, error } = await supabase // Ahora sí funcionará
-    .from('clientes')
-    .select('*')
-    .eq('id', id)
-    .single();
-  if (error) console.error("Error al obtener cliente:", error);
-  return data;
-}
-
-// --- PROVEEDORES ---
-export async function getProveedorById(id) {
-  const { data, error } = await supabase
-    .from('proveedores')
-    .select('*')
-    .eq('id', id)
-    .single();
-  if (error) console.error("Error al obtener proveedor:", error);
-  return data;
-}
-
-// --- STOCK ---
-export async function getStockItemById(id) {
-  const { data, error } = await supabase
-    .from('stock')
-    .select('*')
-    .eq('id', id)
-    .single();
-  if (error) console.error("Error al obtener producto:", error);
-  return data;
-}
-
-export const iniciarSesionFinal = login;

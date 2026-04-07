@@ -1,7 +1,10 @@
 import { supabase } from "@/supabase";
 
-// --- HELPERS ---
-const getEmpresaId = () => 'emp_default';
+
+const getEmpresaId = () => {
+  const user = JSON.parse(localStorage.getItem("contasoft_user_sesion"));
+  return user ? user.empresa_id : 'emp_default';
+};
 
 // --- EMPRESA ---
 export async function getEmpresa() {
@@ -10,9 +13,52 @@ export async function getEmpresa() {
 }
 
 export async function saveEmpresa(empresaData) {
-  return await supabase.from('empresa').upsert({ ...empresaData, empresa_id: getEmpresaId() });
-}
+  const eid = getEmpresaId();
+  
+   const payload = { 
+    empresa_id: eid,
+    nombre: empresaData.nombre,
+    direccion: empresaData.direccion,
+    telefono: empresaData.telefono,
+    cuit: empresaData.cuit,
+    condicion_iva: empresaData.condicion_iva,
+    localidad: empresaData.localidad,
+    provincia: empresaData.provincia,
+    email: empresaData.email,
+    logo: empresaData.logo 
+  };
 
+  const { data, error } = await supabase
+    .from('empresa')
+    .upsert(payload, { onConflict: 'empresa_id' }) 
+    .select();
+
+  if (error) {
+    console.error("Error al guardar empresa JD:", error.message);
+    throw error;
+  }
+  return data ? data[0] : null;
+}
+export async function uploadLogo(file) {
+  const empresaId = getEmpresaId();
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${empresaId}.${fileExt}`;
+  const filePath = `logos/${fileName}`;
+
+  // 1. Subir el archivo al Storage
+  const { error: uploadError } = await supabase.storage
+    .from('logos')
+    .upload(filePath, file, { upsert: true });
+
+  if (uploadError) throw uploadError;
+
+  // 2. Obtener la URL pública
+  const { data } = supabase.storage
+    .from('logos')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl; // Este es el texto que guardaremos en la tabla
+}
 // --- FACTURAS ---
 export async function getFacturas() {
   const { data } = await supabase.from('facturas').select('*').eq('empresa_id', getEmpresaId()).order('fecha', { ascending: false });
@@ -66,10 +112,21 @@ export async function getClienteById(id) {
   return data;
 }
 
-export async function saveCliente(c) {
-  const payload = { ...c, empresa_id: getEmpresaId() };
-  if (!c.id || c.id === 0 || c.id === 'nuevo') delete payload.id;
-  return await supabase.from('clientes').upsert(payload).select();
+export async function saveCliente(clienteData) {
+  const user = JSON.parse(localStorage.getItem("contasoft_user_sesion"));
+  
+  const payload = {
+    ...clienteData,
+    empresa_id: user.empresa_id // Nos aseguramos de que el cliente pertenezca a tu empresa
+  };
+
+  const { data, error } = await supabase
+    .from('clientes')
+    .upsert(payload)
+    .select();
+
+  if (error) throw error;
+  return data;
 }
 
 // --- PROVEEDORES ---
@@ -110,14 +167,13 @@ export async function saveStockItem(i) {
   
   const costoReal = (pBase * (1 - pDesc / 100)) * (1 + pFlete / 100);
   const precioFinal = costoReal * (1 + pGana / 100);
-
-  // Payload ultra-limpio sin updated_at
+ 
   const payload = {
     nombre: i.nombre,
     cantidad: Number(i.cantidad) || 0,
     precio: precioFinal, 
     categoria: i.categoria || 'General',
-    empresa_id: 'emp_default',
+    empresa_id: getEmpresaId(), // <--- CAMBIO AQUÍ: Antes decía 'emp_default'
     codigo: i.codigo || '',
     precio_base: pBase,
     descuento_porcentaje: pDesc,
@@ -127,8 +183,7 @@ export async function saveStockItem(i) {
     stock_minimo: Number(i.stock_minimo) || 5
   };
 
-  // Manejo de ID para evitar errores en Upsert
-  if (!i.id || i.id === 'nuevo' || i.id === 0) {
+    if (!i.id || i.id === 'nuevo' || i.id === 0) {
     delete payload.id;
   } else {
     payload.id = i.id;
@@ -140,7 +195,8 @@ export async function saveStockItem(i) {
     console.error("Error JD Sistemas:", error.message);
     throw error;
   }
-  return data[0];
+  
+  return data ? data[0] : null;
 }
 // Nueva función de búsqueda rápida
 export async function buscarProductoPorCodigo(codigo) {
@@ -150,19 +206,66 @@ export async function buscarProductoPorCodigo(codigo) {
     .ilike('codigo', `%${codigo}%`) // Busca coincidencias parciales
     .limit(5);
   return data || [];
+}// --- PAGOS Y CAJA ---
+
+// Obtener todos los movimientos de la empresa
+export async function getMovimientosCaja() {
+  const { data, error } = await supabase
+    .from('caja')
+    .select('*')
+    .eq('empresa_id', getEmpresaId())
+    .order('fecha', { ascending: false });
+  
+  if (error) throw error;
+  return data || [];
 }
-// --- PAGOS Y CAJA ---
+
+// Obtener pagos de un cliente específico
 export async function getPagosCliente(clienteId) {
-  const { data, error } = await supabase.from('caja').select('*').eq('cliente_id', clienteId).eq('tipo', 'ingreso').order('fecha', { ascending: false });
+  const { data, error } = await supabase
+    .from('caja')
+    .select('*')
+    .eq('cliente_id', clienteId)
+    .eq('tipo', 'ingreso')
+    .order('fecha', { ascending: false });
+    
   return error ? [] : (data || []);
 }
+export async function guardarMovimiento(m) {
+  const eid = getEmpresaId();
+  
+  // Quitamos la columna que falla para probar
+  const payload = {
+    tipo: m.tipo.toLowerCase(),
+    monto: Number(m.monto),
+    concepto: m.concepto,
+    categoria: m.categoria || 'General',
+    empresa_id: eid,
+    fecha: m.fecha || new Date().toISOString()
+    // 🚩 Quitamos 'metodo' y 'metodo_pago' temporalmente
+  };
 
-export async function registrarMovimientoCaja(tipo, monto, concepto, categoria = 'General', clienteId = null) {
-  return await supabase.from('caja').insert([{
-    tipo: tipo.toLowerCase(), monto: Number(monto), concepto, categoria, cliente_id: clienteId, empresa_id: getEmpresaId(), fecha: new Date().toISOString()
-  }]);
+  const { data, error } = await supabase
+    .from('caja')
+    .insert([payload])
+    .select();
+
+  if (error) {
+    console.error("❌ Error real:", error.message);
+    throw error;
+  }
+  return data ? data[0] : null;
 }
-
+export async function registrarMovimientoCaja(tipo, monto, concepto, categoria = 'General', clienteId = null) {
+  return await guardarMovimiento({
+    tipo,
+    monto,
+    concepto,
+    categoria,
+    metodo_pago: 'Efectivo', // Por defecto
+    cliente_id: clienteId
+  });
+}
 // --- CHEQUES ---
 export async function getCheques() {
   const { data } = await supabase.from('cheques').select('*').eq('empresa_id', getEmpresaId()).order('created_at', { ascending: false });
@@ -216,14 +319,65 @@ export async function getRemitos() {
 }
 
 export async function saveRemito(r) {
+  const empresa_id = getEmpresaId();
+  
+  // 1. Preparar el payload del remito
   const payload = {
     ...r,
-    empresa_id: getEmpresaId(),
+    empresa_id,
     fecha: r.fecha || new Date().toISOString()
   };
-  return await supabase.from('remitos').insert([payload]).select().single();
-}
 
+  // 2. Insertar el remito en Supabase
+  const { data: remito, error: rError } = await supabase
+    .from('remitos')
+    .insert([payload])
+    .select()
+    .single();
+
+  if (rError) {
+    console.error("Error al guardar remito:", rError.message);
+    throw rError;
+  }
+
+  // 3. ACTUALIZAR STOCK: Recorremos los ítems del remito
+  if (r.items && r.items.length > 0) {
+    for (const item of r.items) {
+      // Buscamos el stock actual del producto
+      const { data: producto, error: pError } = await supabase
+        .from('stock')
+        .select('cantidad')
+        .eq('id', item.producto_id)
+        .single();
+
+      if (!pError && producto) {
+        // Calculamos el nuevo stock (Restamos lo que sale en el remito)
+        const nuevaCantidad = Number(producto.cantidad) - Number(item.cantidad);
+
+        // Actualizamos la tabla de stock
+        await supabase
+          .from('stock')
+          .update({ cantidad: nuevaCantidad })
+          .eq('id', item.producto_id);
+          
+        console.log(`Stock actualizado para ${item.nombre}: ${nuevaCantidad}`);
+      }
+    }
+  }
+
+  return remito;
+}
+export async function getRemitoById(id) {
+  if (!id || id === 'nuevo') return null;
+  const { data, error } = await supabase
+    .from('remitos')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) return null;
+  return data;
+}
 // --- OTROS ---
 export function imprimirFacturaPro() { console.log("Imprimiendo Factura..."); }
 

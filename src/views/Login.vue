@@ -1,223 +1,160 @@
+<template>
+  <div class="auth-wrapper">
+    <div class="auth-card card-glass">
+      <div class="brand-section">
+        <div class="logo-box">C</div>
+        <h1>Contasoft <span>ERP</span></h1>
+        <p class="subtitle">JD Sistemasinformáticos</p>
+      </div>
+
+      <form v-if="!mostrandoRegistro" @submit.prevent="handleLogin" class="auth-form">
+        <h2>Iniciar Sesión</h2>
+        <div class="input-group">
+          <label>Email</label>
+          <input v-model="loginForm.email" type="email" placeholder="admin@admin.com" required />
+        </div>
+        <div class="input-group">
+          <label>Contraseña</label>
+          <input v-model="loginForm.password" type="password" placeholder="••••••••" required />
+        </div>
+        
+        <div v-if="errorMsg" class="error-badge">{{ errorMsg }}</div>
+
+        <button type="submit" class="btn-primary" :disabled="cargando">
+          {{ cargando ? 'Verificando...' : 'Entrar 🚀' }}
+        </button>
+        
+        <p class="switch-text">
+          ¿No tienes cuenta? <a @click.prevent="mostrandoRegistro = true">Regístrate aquí</a>
+        </p>
+      </form>
+
+      <form v-else @submit.prevent="handleRegistro" class="auth-form">
+        <h2>Crear Nueva Empresa</h2>
+        <p class="info-text">Obtén tu propio espacio de base de datos aislado y único.</p>
+        
+        <div class="input-group">
+          <label>Tu Nombre Completo</label>
+          <input v-model="registroForm.nombre" type="text" placeholder="Juan Pérez" required />
+        </div>
+        <div class="input-group">
+          <label>Email Corporativo</label>
+          <input v-model="registroForm.email" type="email" placeholder="contacto@tuempresa.com" required />
+        </div>
+        <div class="input-group">
+          <label>Contraseña (Mín. 6 caracteres)</label>
+          <input v-model="registroForm.password" type="password" placeholder="••••••••" required minlength="6"/>
+        </div>
+
+        <div v-if="errorMsg" class="error-badge">{{ errorMsg }}</div>
+
+        <button type="submit" class="btn-success" :disabled="cargando">
+          {{ cargando ? 'Creando espacio...' : 'Crear Mi ERP ✅' }}
+        </button>
+
+        <p class="switch-text">
+          ¿Ya tienes cuenta? <a @click.prevent="mostrandoRegistro = false">Volver al Login</a>
+        </p>
+      </form>
+    </div>
+  </div>
+</template>
+
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { iniciarSesionFinal } from '@/services/auth'; 
+import { loginUser, registerUser } from '@/services/auth';
 
 const router = useRouter();
-const email = ref('');
-const password = ref('');
-const error = ref('');
 const cargando = ref(false);
+const errorMsg = ref('');
+const mostrandoRegistro = ref(false);
 
-const handleEjecutarLogin = async () => {
-  console.log("Botón presionado");
-  if (!email.value || !password.value) return;
+const loginForm = ref({ email: '', password: '' });
+const registroForm = ref({ nombre: '', email: '', password: '' });
 
-  error.value = '';
-  cargando.value = true;
+// LÓGICA DE LOGIN
+const handleLogin = async () => {
+  errorMsg.value = '';
+  if (!loginForm.value.email || !loginForm.value.password) return;
 
   try {
-    const user = await iniciarSesionFinal(email.value, password.value);
-    if (user) {
-      router.push('/dashboard');
-    } else {
-      error.value = 'Credenciales inválidas';
-    }
-  } catch (e) {
-    error.value = e.message;
-    console.error("Error en el componente:", e);
+    cargando.value = true;
+    await loginUser(loginForm.value.email, loginForm.value.password);
+    router.push('/dashboard'); // Redirigir al panel
+  } catch (err) {
+    errorMsg.value = err.message;
+  } finally {
+    cargando.value = false;
+  }
+};
+
+// LÓGICA DE REGISTRO (CREAR EMPRESA AISLADA)
+const handleRegistro = async () => {
+  errorMsg.value = '';
+  try {
+    cargando.value = true;
+    const usuarioCreado = await registerUser(registroForm.value);
+    
+    // Opcional: Logear automáticamente tras registrarse
+    await loginUser(usuarioCreado.email, usuarioCreado.password);
+    
+    alert("¡Empresa creada con éxito! Bienvenido a Contasoft.");
+    router.push('/dashboard');
+  } catch (err) {
+    errorMsg.value = err.message;
   } finally {
     cargando.value = false;
   }
 };
 </script>
 
-<template>
-  <div class="auth-container">
-    <div class="card-glass login-card">
-      <div class="brand">
-        <div class="logo-icon">C</div>
-        <h1>ContaSoft</h1>
-      </div>
-      
-      <p class="subtitle">Bienvenido de nuevo. Ingrese a su panel.</p>
-
-    <form @submit.prevent="handleEjecutarLogin" class="auth-form">
-        <div class="field">
-          <label>Correo Electrónico</label>
-          <input 
-            v-model="email" 
-            class="input-moderno" 
-            type="email" 
-            placeholder="nombre@empresa.com" 
-            required 
-            :disabled="cargando"
-          />
-        </div>
-
-        <div class="field">
-          <label>Contraseña</label>
-          <input 
-            v-model="password" 
-            class="input-moderno" 
-            type="password" 
-            placeholder="••••••••" 
-            required 
-            :disabled="cargando"
-          />
-        </div>
-
-        <div class="actions">
-          <button class="btn-primary" type="submit" :disabled="cargando">
-            {{ cargando ? 'Verificando...' : 'Iniciar Sesión' }}
-          </button>
-          
-          <button 
-            class="btn-text" 
-            type="button" 
-            @click="$router.push('/registro')"
-            :disabled="cargando"
-          >
-            ¿No tienes cuenta? Regístrate
-          </button>
-        </div>
-
-        <transition name="fade">
-          <p v-if="error" class="error-msg">{{ error }}</p>
-        </transition>
-      </form>
-    </div>
-  </div>
-</template>
-
 <style scoped>
-/* Los estilos se mantienen igual, están excelentes */
-.auth-container {
-  min-height: 100vh;
+/* Estilos Monocromáticos JD Sistemas */
+.auth-wrapper {
+  height: 100vh;
   display: flex;
-  align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at top left, #2563eb10, transparent),
-              radial-gradient(circle at bottom right, #1e293b10, transparent);
-  padding: 20px;
+  align-items: center;
+  background: #f1f5f9; /* Fondo gris muy suave */
 }
 
-.login-card {
+.auth-card {
+  background: white;
   width: 100%;
   max-width: 400px;
-  padding: 40px !important;
-  text-align: center;
-}
-
-.brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.logo-icon {
-  width: 50px;
-  height: 50px;
-  background: #2563eb;
-  color: white;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 900;
-  font-size: 1.5rem;
-  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4);
-}
-
-.subtitle {
-  color: #64748b;
-  font-size: 0.9rem;
-  margin-bottom: 30px;
-}
-
-.auth-form {
-  text-align: left;
-}
-
-.field {
-  margin-bottom: 20px;
-}
-
-.field label {
-  display: block;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #475569;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-}
-
-.input-moderno {
-  width: 100%;
-  padding: 12px;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #f8fafc;
-  transition: all 0.2s;
 }
 
-.input-moderno:focus {
-  outline: none;
-  border-color: #2563eb;
-  background: white;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-}
+.brand-section { text-align: center; margin-bottom: 30px; }
+.logo-box { background: #0f172a; color: white; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; margin: 0 auto 10px; font-weight: bold; font-size: 1.2rem; }
+.brand-section h1 { font-size: 1.5rem; margin: 0; color: #0f172a; }
+.brand-section h1 span { color: #64748b; font-weight: 300; }
+.subtitle { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
 
-.actions {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-top: 30px;
-}
+.auth-form h2 { font-size: 1.1rem; text-align: center; margin-bottom: 20px; color: #334155; }
+.info-text { font-size: 0.8rem; color: #64748b; text-align: center; margin-top: -15px; margin-bottom: 20px; }
 
-.btn-primary {
-  width: 100%;
-  padding: 14px;
-  background: #1e293b;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s;
-}
+.input-group { margin-bottom: 15px; }
+.input-group label { display: block; font-size: 0.8rem; font-weight: bold; color: #475569; margin-bottom: 5px; }
+.input-group input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; transition: 0.2s; }
+.input-group input:focus { border-color: #0f172a; outline: none; box-shadow: 0 0 0 3px rgba(15,23,42,0.1); }
 
-.btn-primary:hover {
-  background: #0f172a;
-}
+.error-badge { background: #fee2e2; color: #ef4444; padding: 10px; border-radius: 6px; font-size: 0.8rem; text-align: center; margin-bottom: 15px; border: 1px solid #fecaca; }
 
-.btn-primary:disabled {
-  background: #94a3b8;
-  cursor: wait;
-}
+.btn-primary, .btn-success { width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
+.btn-primary { background: #0f172a; color: white; }
+.btn-primary:hover { background: #1e293b; }
 
-.btn-text {
-  background: none;
-  border: none;
-  color: #2563eb;
-  font-size: 0.85rem;
-  cursor: pointer;
-  font-weight: 600;
-}
+.btn-success { background: #16a34a; color: white; }
+.btn-success:hover { background: #15803d; }
 
-.error-msg {
-  margin-top: 20px;
-  padding: 10px;
-  background: #fef2f2;
-  color: #dc2626;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  text-align: center;
-  border: 1px solid #fee2e2;
-}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.switch-text { font-size: 0.8rem; text-align: center; color: #64748b; margin-top: 20px; }
+.switch-text a { color: #2563eb; cursor: pointer; font-weight: bold; text-decoration: none; }
+.switch-text a:hover { text-decoration: underline; }
 </style>

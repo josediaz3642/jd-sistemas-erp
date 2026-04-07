@@ -8,10 +8,10 @@
           v-model="filtro" 
           placeholder="Buscar por cliente o número..." 
           class="search-input"
-        />
-        <router-link to="/remito/nuevo" class="btn-primary">
-          + Nuevo Remito
-        </router-link>
+        />     
+<router-link to="/remitos/nuevo" class="btn-primary">
+  + Nuevo Remito
+</router-link>
       </div>
     </header>
 
@@ -53,7 +53,6 @@
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -72,6 +71,7 @@ const cargarRemitos = async () => {
 };
 
 const remitosFiltrados = computed(() => {
+  if (!remitos.value) return [];
   if (!filtro.value) return remitos.value;
   const f = filtro.value.toLowerCase();
   return remitos.value.filter(r => 
@@ -81,16 +81,20 @@ const remitosFiltrados = computed(() => {
 });
 
 const formatFecha = (fechaStr) => {
+  if (!fechaStr) return '-';
   return new Date(fechaStr).toLocaleDateString('es-AR');
 };
 
 const verDetalle = (id) => {
-  router.push(`/remito/${id}`);
+  router.push(`/remitos/${id}`); // Asegúrate que sea plural
 };
 
-const imprimir = (remito) => {
-  console.log("Imprimiendo remito:", remito.id);
-  // Aquí iría tu lógica de impresión
+const imprimir = (remito) => { 
+  router.push({ 
+    name: 'DetalleRemito', 
+    params: { id: remito.id }, 
+    query: { imprimir: 'true' } 
+  });
 };
 
 onMounted(cargarRemitos);
