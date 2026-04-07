@@ -2,9 +2,9 @@
   "name": "contasoft-erp",
   "version": "1.0.0",
   "description": "Contasoft ERP - PWA demo",
-  "scripts": {
+ "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build --emptyOutDir",
     "preview": "vite preview"
   },
   "dependencies": {
