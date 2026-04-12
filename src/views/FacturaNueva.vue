@@ -1,98 +1,84 @@
 <template>
-  <div class="factura-page">
-    <header class="header-vta">
-      <h1>Nueva Venta</h1>
-      <div class="header-actions">
-        <button @click="$router.back()" class="btn-cancel">Cancelar</button>
-        <button @click="procesarVenta" class="btn-save" :disabled="!puedeFacturar || guardando">
-          {{ guardando ? 'Procesando...' : 'Emitir Factura' }}
-        </button>
-      </div>
+  <div class="page-factura">
+    <header class="header-factura">
+      <button @click="router.back()" class="btn-volver">← Cancelar</button>
+      <h1>Nueva Factura</h1>
+      <div class="nro-comprobante">Borrador: #{{ new Date().getFullYear() }}-{{ Math.floor(Math.random() * 1000) }}</div>
     </header>
 
-    <div class="main-grid">
-      <div class="selector-section">
-        <div class="card-vta">
-          <h3>1. Cliente</h3>
-          <select v-model="form.cliente_id" class="input-vta">
-            <option :value="null">Consumidor Final</option>
-            <option v-for="c in clientes" :key="c.id" :value="c.id">
-              {{ c.nombre }}
-            </option>
-          </select>
+    <div class="grid-factura">
+      <div class="col-principal">
+        <div class="card-glass">
+          <h2 class="section-title">1. Selección de Cliente</h2>
+          <div class="cliente-selector">
+            <div v-if="clienteSeleccionado" class="cliente-card animate-fade">
+              <div class="info">
+                <span class="label">Facturando a:</span>
+                <h3>{{ clienteSeleccionado.nombre }}</h3>
+                <p>{{ clienteSeleccionado.nro_documento }} | {{ clienteSeleccionado.email || 'Sin email' }}</p>
+              </div>
+              <button @click="clienteSeleccionado = null" class="btn-cambiar">Cambiar Cliente</button>
+            </div>
+            
+            <div v-else class="buscador-cliente">
+              <input 
+                type="text" 
+                v-model="busquedaCliente" 
+                placeholder="Buscar por nombre o DNI..."
+                @input="buscarClientes"
+                class="input-pro"
+              />
+              <ul v-if="sugerenciasClientes.length > 0" class="sugerencias">
+                <li v-for="c in sugerenciasClientes" :key="c.id" @click="seleccionarCliente(c)">
+                  {{ c.nombre }} <small>({{ c.nro_documento }})</small>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
 
-        <div class="card-vta mt-20">
-          <h3>2. Agregar Productos</h3>
-          <div class="search-box">
-            <input 
-              v-model="busquedaProd" 
-              placeholder="Buscar por nombre o código..." 
-              @keyup.enter="agregarPrimeroEncontrado"
-              class="input-vta"
-            />
+        <div class="card-glass items-section">
+          <h2 class="section-title">2. Detalles de la Venta</h2>
+          <div class="items-header">
+            <span>Concepto / Producto</span>
+            <span>Cant.</span>
+            <span>Precio Unit.</span>
+            <span>Subtotal</span>
           </div>
-          
-          <div class="productos-sugeridos">
-            <div 
-              v-for="p in productosFiltrados" 
-              :key="p.id" 
-              class="prod-item"
-              @click="agregarItem(p)"
-            >
-              <span>{{ p.nombre }}</span>
-              <div class="prod-info">
-                <small>Stock: {{ p.cantidad }}</small>
-                <strong>${{ p.precio.toLocaleString() }}</strong>
-              </div>
-            </div>
+          <div class="item-row">
+             <input type="text" v-model="itemManual.desc" placeholder="Ej: Servicio Técnico" class="input-desc">
+             <input type="number" v-model="itemManual.cant" class="input-cant">
+             <input type="number" v-model="itemManual.precio" class="input-precio">
+             <span class="subtotal-item">${{ (itemManual.cant * itemManual.precio).toLocaleString() }}</span>
           </div>
         </div>
       </div>
 
-      <div class="detalle-section card-vta">
-        <h3>Resumen de Venta</h3>
-        <div class="items-lista">
-          <table class="table-items">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Cant.</th>
-                <th>Subtotal</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(item, index) in form.items" :key="index">
-                <td>{{ item.nombre }}</td>
-                <td>
-                  <input type="number" v-model.number="item.cantidad" class="input-qty" min="1">
-                </td>
-                <td>${{ (item.cantidad * item.precio).toLocaleString() }}</td>
-                <td><button @click="quitarItem(index)" class="btn-del">✕</button></td>
-              </tr>
-              <tr v-if="form.items.length === 0">
-                <td colspan="4" class="empty-msg">No hay productos seleccionados</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="footer-vta">
-          <div class="totales">
-            <div class="total-row">
-              <span>Subtotal:</span>
-              <span>${{ subtotal.toLocaleString() }}</span>
-            </div>
-            <div class="total-row">
-              <span>IVA (21%):</span>
-              <span>${{ iva.toLocaleString() }}</span>
-            </div>
-            <div class="total-row final">
-              <span>TOTAL:</span>
-              <span>${{ total.toLocaleString() }}</span>
-            </div>
+      <div class="col-lateral">
+        <div class="card-glass resumen-pago">
+          <h2 class="section-title">Resumen</h2>
+          <div class="total-box">
+            <p>TOTAL A COBRAR</p>
+            <h2 class="monto-total">${{ totalFactura.toLocaleString() }}</h2>
           </div>
+
+          <div class="metodo-pago">
+            <label>Condición de Venta</label>
+            <select v-model="condicionVenta" class="select-pro">
+              <option value="Contado">Efectivo / Contado</option>
+              <option value="Transferencia">Transferencia Bancaria</option>
+              <option value="Tarjeta">Tarjeta Débito/Crédito</option>
+              <option value="Cuenta Corriente">Cuenta Corriente (Deuda)</option>
+            </select>
+          </div>
+
+          <button 
+            @click="confirmarVenta" 
+            class="btn-confirmar" 
+            :disabled="!clienteSeleccionado || guardandoVenta"
+          >
+            {{ guardandoVenta ? 'Procesando...' : '🚀 Confirmar y Emitir' }}
+          </button>
         </div>
       </div>
     </div>
@@ -101,119 +87,146 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { getClientes, getStockItems, saveFactura } from '@/services/data';
+import { useRoute, useRouter } from 'vue-router';
+import { getClienteById, getClientes } from '@/services/data';
+import { supabase } from '@/supabase';
 
+const route = useRoute();
 const router = useRouter();
-const clientes = ref([]);
-const productos = ref([]);
-const busquedaProd = ref('');
-const guardando = ref(false);
 
-const form = ref({
-  cliente_id: null,
-  items: [],
-  punto_venta: 1,
-  tipo_comprobante: 'A'
-});
+// ESTADOS
+const clienteSeleccionado = ref(null);
+const busquedaCliente = ref('');
+const sugerenciasClientes = ref([]);
+const condicionVenta = ref('Contado');
+const guardandoVenta = ref(false);
+
+// ITEM TEMPORAL (Para que el código funcione ya mismo)
+const itemManual = ref({ desc: '', cant: 1, precio: 0 });
+const totalFactura = computed(() => itemManual.value.cant * itemManual.value.precio);
 
 onMounted(async () => {
-  const [cData, pData] = await Promise.all([getClientes(), getStockItems()]);
-  clientes.value = cData || [];
-  productos.value = pData || [];
-});
-
-const productosFiltrados = computed(() => {
-  if (!busquedaProd.value) return productos.value.slice(0, 5);
-  return productos.value.filter(p => 
-    p.nombre.toLowerCase().includes(busquedaProd.value.toLowerCase())
-  ).slice(0, 5);
-});
-
-const subtotal = computed(() => form.value.items.reduce((acc, item) => acc + (item.precio * item.cantidad), 0));
-const iva = computed(() => subtotal.value * 0.21);
-const total = computed(() => subtotal.value + iva.value);
-const puedeFacturar = computed(() => form.value.items.length > 0);
-
-function agregarItem(p) {
-  const existe = form.value.items.find(i => i.producto_id === p.id);
-  if (existe) {
-    existe.cantidad++;
-  } else {
-    form.value.items.push({
-      producto_id: p.id,
-      nombre: p.nombre,
-      precio: p.precio,
-      cantidad: 1
-    });
+  const idViaUrl = route.query.clienteId;
+  if (idViaUrl && idViaUrl !== "undefined") {
+    const data = await getClienteById(idViaUrl);
+    if (data) clienteSeleccionado.value = data;
   }
+});
+
+// BUSCADOR DE CLIENTES REAL
+async function buscarClientes() {
+  if (busquedaCliente.value.length < 2) {
+    sugerenciasClientes.value = [];
+    return;
+  }
+  const { data } = await supabase
+    .from('clientes')
+    .select('*')
+    .ilike('nombre', `%${busquedaCliente.value}%`)
+    .limit(5);
+  sugerenciasClientes.value = data || [];
 }
 
-function quitarItem(index) {
-  form.value.items.splice(index, 1);
+function seleccionarCliente(cliente) {
+  clienteSeleccionado.value = cliente;
+  sugerenciasClientes.value = [];
+  busquedaCliente.value = '';
 }
 
-async function procesarVenta() {
-  if (guardando.value) return;
-  guardando.value = true;
+async function confirmarVenta() {
+  if (!clienteSeleccionado.value) return alert("Debes seleccionar un cliente");
+  if (totalFactura.value <= 0) return alert("El total debe ser mayor a 0");
 
+  guardandoVenta.value = true;
+  
   try {
-    const nuevaFactura = {
-      ...form.value,
-      total: total.value,
-      subtotal: subtotal.value,
-      iva: iva.value,
-      fecha: new Date().toISOString(),
-      estado: 'EMITIDA',
-      // Denormalizamos el nombre del cliente para el historial rápido
-      cliente_nombre: form.value.cliente_id 
-        ? clientes.value.find(c => c.id === form.value.cliente_id)?.nombre 
-        : 'Consumidor Final'
-    };
+    // 1. Guardar Factura
+    const { data: nuevaFactura, error: errorFactura } = await supabase
+      .from('facturas')
+      .insert([{
+        cliente_id: clienteSeleccionado.value.id,
+        cliente_nombre: clienteSeleccionado.value.nombre,
+        total: totalFactura.value,
+        condicion_venta: condicionVenta.value,
+        estado: 'EMITIDA',
+        fecha: new Date().toISOString()
+      }])
+      .select().single();
 
-    const resultado = await saveFactura(nuevaFactura);
-    if (resultado) {
-      router.push(`/facturacion/${resultado.id}`);
+    if (errorFactura) throw errorFactura;
+
+    // 2. Lógica Contable (Caja o Cta Cte)
+    if (condicionVenta.value === 'Cuenta Corriente') {
+      await supabase.from('movimientos_cuentas').insert([{
+        cliente_id: clienteSeleccionado.value.id,
+        factura_id: nuevaFactura.id,
+        monto: totalFactura.value,
+        impacto: '+',
+        detalle: `Factura #${nuevaFactura.id.toString().slice(-5)}` 
+      }]);
+    } else {
+      await supabase.from('caja_movimientos').insert([{
+        tipo: 'ingreso',
+        monto: totalFactura.value,
+        concepto: `Venta Factura #${nuevaFactura.id.toString().slice(-5)}`,
+        categoria: 'Ventas',
+        metodo_pago: condicionVenta.value,
+        cliente_id: clienteSeleccionado.value.id
+      }]);
     }
+
+    // --- EL WHATSAPP VA AQUÍ ADENTRO ---
+    alert("🚀 ¡Venta registrada con éxito!");
+    
+    const enviar = confirm("¿Deseas enviar el comprobante por WhatsApp al cliente?");
+    if (enviar) {
+      enviarResumenWhatsApp(nuevaFactura, clienteSeleccionado.value);
+    }
+
+    router.push('/facturacion');
+
   } catch (error) {
-    alert("Error al procesar la venta. Verifique el stock.");
+    console.error("Error fatal:", error);
+    alert("Error al procesar la venta. Revisa la consola.");
   } finally {
-    guardando.value = false;
+    guardandoVenta.value = false;
   }
 }
 </script>
 
 <style scoped>
-.factura-page { padding: 20px; max-width: 1200px; margin: 0 auto; }
-.header-vta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.main-grid { display: grid; grid-template-columns: 400px 1fr; gap: 20px; }
-
-.card-vta { background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.mt-20 { margin-top: 20px; }
-
-.input-vta { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 8px; }
-.productos-sugeridos { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
-
-.prod-item { 
-  display: flex; justify-content: space-between; align-items: center; 
-  padding: 10px; border: 1px solid #f1f5f9; border-radius: 8px; cursor: pointer; transition: 0.2s;
+/* (Se mantienen tus estilos y agregamos los de buscador) */
+.buscador-cliente { position: relative; }
+.sugerencias { 
+  position: absolute; width: 100%; background: white; border: 1px solid #e2e8f0; 
+  border-radius: 8px; z-index: 100; list-style: none; padding: 0; margin-top: 5px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
 }
-.prod-item:hover { background: #f8fafc; border-color: #2563eb; }
-.prod-info { text-align: right; display: flex; flex-direction: column; }
+.sugerencias li { padding: 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+.sugerencias li:hover { background: #f8fafc; color: #2563eb; }
+.input-pro { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; outline: none; }
+.input-pro:focus { border-color: #2563eb; }
 
-.table-items { width: 100%; border-collapse: collapse; margin-top: 15px; }
-.table-items th { text-align: left; font-size: 0.8rem; color: #64748b; padding: 10px; border-bottom: 1px solid #f1f5f9; }
-.table-items td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
+.page-factura { padding: 30px; max-width: 1400px; margin: 0 auto; color: #1e293b; }
+.header-factura { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.grid-factura { display: grid; grid-template-columns: 1fr 350px; gap: 25px; }
+.card-glass { background: white; border-radius: 16px; padding: 25px; border: 1px solid #e2e8f0; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.section-title { font-size: 0.85rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 1px; }
 
-.input-qty { width: 60px; padding: 5px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; }
-.btn-del { background: none; border: none; color: #ef4444; cursor: pointer; font-weight: bold; }
+.btn-volver { background: none; border: none; color: #64748b; cursor: pointer; font-weight: 600; }
+.btn-confirmar { 
+  width: 100%; background: #22c55e; color: white; border: none; padding: 18px; 
+  border-radius: 14px; font-weight: 800; font-size: 1.1rem; cursor: pointer; transition: 0.3s;
+}
+.btn-confirmar:hover:not(:disabled) { background: #16a34a; transform: translateY(-2px); }
+.btn-confirmar:disabled { background: #cbd5e1; cursor: not-allowed; }
 
-.footer-vta { margin-top: 30px; display: flex; justify-content: flex-end; }
-.totales { width: 250px; }
-.total-row { display: flex; justify-content: space-between; margin-bottom: 8px; color: #64748b; }
-.final { border-top: 2px solid #1e293b; padding-top: 10px; color: #1e293b; font-weight: 800; font-size: 1.2rem; }
+.total-box { text-align: center; background: #f8fafc; padding: 25px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+.monto-total { font-size: 2.8rem; font-weight: 900; color: #2563eb; margin: 0; }
 
-.btn-save { background: #1e293b; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-.btn-save:disabled { background: #94a3b8; cursor: not-allowed; }
-.btn-cancel { background: white; border: 1px solid #e2e8f0; padding: 12px 24px; border-radius: 8px; margin-right: 10px; cursor: pointer; }
+/* Estilos de tabla de items */
+.items-header { display: grid; grid-template-columns: 1fr 80px 120px 100px; gap: 15px; font-weight: 800; font-size: 0.75rem; color: #94a3b8; margin-bottom: 15px; }
+.item-row { display: grid; grid-template-columns: 1fr 80px 120px 100px; gap: 15px; align-items: center; }
+.item-row input { padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.9rem; }
+.subtotal-item { font-weight: 800; text-align: right; color: #1e293b; }
 </style>

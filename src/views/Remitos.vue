@@ -13,6 +13,7 @@
   + Nuevo Remito
 </router-link>
       </div>
+	
     </header>
 
     <div class="table-responsive">
@@ -57,7 +58,10 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { getRemitos } from '@/services/data';
+import { registrarMovimientoCaja } from '@/services/data';
 
+const remitoPagado = ref(true); // Por defecto marcado
+const metodoPagoRemito = ref('Efectivo');
 const router = useRouter();
 const remitos = ref([]);
 const filtro = ref('');
@@ -69,7 +73,27 @@ const cargarRemitos = async () => {
     console.error("Error al cargar remitos:", error);
   }
 };
-
+const guardarRemitoCompleto = async () => {
+  try {
+    // 1. Primero guardamos el remito (tu lógica actual)
+    const nuevoRemito = await guardarRemito(datosRemito.value);
+    
+    // 2. Si se marcó como pagado, registramos en caja
+    if (remitoPagado.value && nuevoRemito) {
+      await registrarMovimientoCaja(
+        'ingreso', 
+        totalRemito.value, 
+        `Pago Remito N° ${nuevoRemito.numero || nuevoRemito.id.slice(0,5)}`, 
+        'Ventas',
+        clienteSeleccionado.value.id // Vinculamos al cliente
+      );
+    }
+    
+    alert("Remito guardado y pago registrado en caja.");
+  } catch (error) {
+    console.error("Error en proceso completo:", error);
+  }
+};
 const remitosFiltrados = computed(() => {
   if (!remitos.value) return [];
   if (!filtro.value) return remitos.value;

@@ -106,9 +106,18 @@ export async function getClientes() {
   return data || [];
 }
 
+// En src/services/data.js
 export async function getClienteById(id) {
-  if (!id || id === 'nuevo' || id === '0') return null;
-  const { data } = await supabase.from('clientes').select('*').eq('id', id).single();
+  // SI EL ID NO ES VÁLIDO, NO SIGAS
+  if (!id || id === 'nuevo') return null; 
+
+  const { data, error } = await supabase
+    .from('clientes')
+    .select('*')
+    .eq('id', id)
+    .single();
+    
+  if (error) return null;
   return data;
 }
 
@@ -128,7 +137,35 @@ export async function saveCliente(clienteData) {
   if (error) throw error;
   return data;
 }
+// --- CUENTAS CORRIENTES ---
 
+export async function registrarMovimientoFactura(factura, metodoPago) {
+  const eid = getEmpresaId();
+  
+  if (metodoPago === 'Cuenta Corriente') {
+    // 1. Impacta en la Deuda del Cliente
+    const payloadCtaCte = {
+      empresa_id: eid,
+      cliente_id: factura.cliente_id,
+      factura_id: factura.id,
+      monto_original: factura.total,
+      saldo_pendiente: factura.total,
+      fecha: new Date().toISOString(),
+      estado: 'PENDIENTE'
+    };
+    return await supabase.from('cuentas_corrientes').insert([payloadCtaCte]);
+  } else {
+    // 2. Impacta en la Caja (Efectivo, Transf, Tarjeta)
+    return await registrarMovimientoCaja(
+      'ingreso',
+      factura.total,
+      `Factura ${factura.numero} - ${factura.cliente_nombre}`,
+      'Ventas',
+      factura.cliente_id,
+      metodoPago
+    );
+  }
+}
 // --- PROVEEDORES ---
 export async function getProveedores() {
   const { data } = await supabase.from('proveedores').select('*').eq('empresa_id', getEmpresaId()).order('nombre');
@@ -206,9 +243,9 @@ export async function buscarProductoPorCodigo(codigo) {
     .ilike('codigo', `%${codigo}%`) // Busca coincidencias parciales
     .limit(5);
   return data || [];
-}// --- PAGOS Y CAJA ---
+}
+// --- PAGOS Y CAJA ---
 
-// Obtener todos los movimientos de la empresa
 export async function getMovimientosCaja() {
   const { data, error } = await supabase
     .from('caja')
@@ -220,29 +257,19 @@ export async function getMovimientosCaja() {
   return data || [];
 }
 
-// Obtener pagos de un cliente específico
-export async function getPagosCliente(clienteId) {
-  const { data, error } = await supabase
-    .from('caja')
-    .select('*')
-    .eq('cliente_id', clienteId)
-    .eq('tipo', 'ingreso')
-    .order('fecha', { ascending: false });
-    
-  return error ? [] : (data || []);
-}
 export async function guardarMovimiento(m) {
   const eid = getEmpresaId();
   
-  // Quitamos la columna que falla para probar
   const payload = {
     tipo: m.tipo.toLowerCase(),
     monto: Number(m.monto),
     concepto: m.concepto,
     categoria: m.categoria || 'General',
     empresa_id: eid,
-    fecha: m.fecha || new Date().toISOString()
-    // 🚩 Quitamos 'metodo' y 'metodo_pago' temporalmente
+    fecha: m.fecha || new Date().toISOString(),
+    // IMPORTANTE: Asegurate que en Supabase la columna se llame 'metodo_pago' o 'metodo'
+    metodo_pago: m.metodo_pago || 'Efectivo', 
+    cliente_id: m.cliente_id || null
   };
 
   const { data, error } = await supabase
@@ -251,18 +278,20 @@ export async function guardarMovimiento(m) {
     .select();
 
   if (error) {
-    console.error("❌ Error real:", error.message);
+    console.error("❌ Error en Caja:", error.message);
     throw error;
   }
   return data ? data[0] : null;
 }
-export async function registrarMovimientoCaja(tipo, monto, concepto, categoria = 'General', clienteId = null) {
+
+// Esta es la que usaremos desde Remitos
+export async function registrarMovimientoCaja(tipo, monto, concepto, categoria = 'Ventas', clienteId = null, metodo = 'Efectivo') {
   return await guardarMovimiento({
     tipo,
     monto,
     concepto,
     categoria,
-    metodo_pago: 'Efectivo', // Por defecto
+    metodo_pago: metodo,
     cliente_id: clienteId
   });
 }
@@ -388,3 +417,17 @@ export function initializeDataService() {
     console.log("🚀 JD Sistemasinformáticos: Servicio 100% Completo."); 
     return true; 
 }
+// Agregá esto al final de tu data.js o donde tengas las funciones de Supabase
+export const getPagosCliente = async (clienteId) => {
+  const { data, error } = await supabase
+    .from('pagos_cuentas') // Asegurate que el nombre de la tabla coincida
+    .select('*')
+    .eq('cliente_id', clienteId)
+    .order('fecha', { ascending: false });
+
+  if (error) {
+    console.error("Error al obtener pagos:", error);
+    return [];
+  }
+  return data;
+};
