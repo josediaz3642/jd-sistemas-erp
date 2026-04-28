@@ -1,207 +1,203 @@
 <template>
-  <div class="remitos-container">
-    <header class="header-section">
-      <h2>Gestión de Remitos</h2>
-      <div class="actions">
-        <input 
-          type="text" 
-          v-model="filtro" 
-          placeholder="Buscar por cliente o número..." 
-          class="search-input"
-        />     
-<router-link to="/remitos/nuevo" class="btn-primary">
-  + Nuevo Remito
-</router-link>
-      </div>
-	
+  <div class="page-container">
+    <header class="section-header">
+      <h1>Gestión de Remitos</h1>
+      <router-link to="/remitos/nuevo" class="btn-primary-jd">+ Nuevo Remito</router-link>
     </header>
 
-    <div class="table-responsive">
-      <table class="minimal-table">
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Número</th>
-            <th>Cliente</th>
-            <th>Estado</th>
-            <th class="text-right">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="remito in remitosFiltrados" :key="remito.id">
-            <td>{{ formatFecha(remito.fecha) }}</td>
-            <td>#{{ remito.numero || remito.id.toString().slice(0, 8) }}</td>
-            <td>{{ remito.cliente_nombre }}</td>
-            <td>
-              <span :class="['badge', remito.estado?.toLowerCase()]">
-                {{ remito.estado || 'Pendiente' }}
-              </span>
-            </td>
-            <td class="text-right">
-              <button @click="verDetalle(remito.id)" class="btn-icon" title="Ver detalle">
-                👁️
-              </button>
-              <button @click="imprimir(remito)" class="btn-icon" title="Imprimir">
-                🖨️
-              </button>
-            </td>
-          </tr>
-          <tr v-if="remitosFiltrados.length === 0">
-            <td colspan="5" class="text-center">No se encontraron remitos.</td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="search-container glass-card">
+      <input 
+        v-model="filtro" 
+        type="text" 
+        placeholder="Buscar cliente o número..." 
+        class="input-search" 
+      />
+      <div class="filter-pills">
+        <span @click="filtroEstado = 'todos'" :class="{ active: filtroEstado === 'todos' }">Todos</span>
+        <span @click="filtroEstado = 'pendiente'" :class="{ active: filtroEstado === 'pendiente' }">⏳ Pendientes</span>
+        <span @click="filtroEstado = 'entregado'" :class="{ active: filtroEstado === 'entregado' }">✅ Entregados</span>
+      </div>
+    </div>
+
+    <div class="remitos-list">
+      <div v-if="loading" class="loader">Cargando remitos...</div>
+      
+      <div v-else-if="remitosFiltrados.length === 0" class="text-center empty-state">
+        <p>No se encontraron remitos.</p>
+      </div>
+
+      <div v-for="remito in remitosFiltrados" :key="remito.id" class="remito-card glass-card">
+        <div class="remito-main">
+          <div class="remito-info">
+            <span class="remito-number">#{{ remito.numero || remito.id.toString().slice(0, 8) }}</span>
+            <h3 class="cliente-name">{{ remito.cliente_nombre }}</h3>
+            <p class="remito-date">{{ formatFecha(remito.fecha) }}</p>
+          </div>
+          <div :class="['status-badge', (remito.estado || remito.status || 'pendiente').toLowerCase()]">
+            {{ remito.estado || remito.status || 'Pendiente' }}
+          </div>
+        </div>
+
+        <div class="remito-footer">
+          <div class="remito-total">
+            <span class="label">Total</span>
+            <span class="amount">$ {{ remito.total?.toLocaleString() || '0' }}</span>
+          </div>
+          <div class="remito-actions">
+            <button 
+              @click="cambiarEstado(remito)" 
+              class="btn-action btn-status"
+              title="Cambiar Estado"
+            >
+              {{ (remito.estado || remito.status || 'pendiente').toLowerCase() === 'pendiente' ? '🚚' : '⏳' }}
+            </button>
+            
+            <button @click="verDetalle(remito.id)" class="btn-action">👁️ Ver</button>
+            <button @click="imprimir(remito)" class="btn-action btn-print">🖨️</button>
+            <button @click="eliminarRemito(remito)" class="btn-action btn-delete-remito">🗑️</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
+
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { getRemitos } from '@/services/data';
-import { registrarMovimientoCaja } from '@/services/data';
+import { deleteRemito, updateRemitoEstado } from '@/services/data';
 
-const remitoPagado = ref(true); // Por defecto marcado
-const metodoPagoRemito = ref('Efectivo');
 const router = useRouter();
 const remitos = ref([]);
+const loading = ref(true);
 const filtro = ref('');
+const filtroEstado = ref('todos');
 
 const cargarRemitos = async () => {
+  loading.value = true;
   try {
-    remitos.value = await getRemitos();
+    const data = await getRemitos();
+    console.log("Datos recibidos:", data); // Mirá la consola para ver qué nombres de columnas vienen
+    remitos.value = data || [];
   } catch (error) {
     console.error("Error al cargar remitos:", error);
+    remitos.value = [];
+  } finally {
+    loading.value = false;
   }
 };
-const guardarRemitoCompleto = async () => {
+const cambiarEstado = async (remito) => { 
+  const valorActual = remito.estado || remito.status || 'Pendiente';
+  const nuevoEstado = valorActual.toLowerCase() === 'pendiente' ? 'Entregado' : 'Pendiente';
+  
+  try {   
+    await updateRemitoEstado(remito.id, nuevoEstado);   
+    await cargarRemitos(); 
+  } catch (e) {
+    alert("Error: Revisa que el nombre de la columna en Supabase sea correcto.");
+  }
+};
+
+const eliminarRemito = async (remito) => {
+  const confirmar = confirm(`¿Estás seguro de eliminar el remito de ${remito.cliente_nombre}?`);
+  if (!confirmar) return;
+
   try {
-    // 1. Primero guardamos el remito (tu lógica actual)
-    const nuevoRemito = await guardarRemito(datosRemito.value);
-    
-    // 2. Si se marcó como pagado, registramos en caja
-    if (remitoPagado.value && nuevoRemito) {
-      await registrarMovimientoCaja(
-        'ingreso', 
-        totalRemito.value, 
-        `Pago Remito N° ${nuevoRemito.numero || nuevoRemito.id.slice(0,5)}`, 
-        'Ventas',
-        clienteSeleccionado.value.id // Vinculamos al cliente
-      );
-    }
-    
-    alert("Remito guardado y pago registrado en caja.");
-  } catch (error) {
-    console.error("Error en proceso completo:", error);
+    await deleteRemito(remito.id);
+    await cargarRemitos(); // Refrescar lista
+  } catch (e) {
+    alert("Error al eliminar el remito");
   }
 };
 const remitosFiltrados = computed(() => {
   if (!remitos.value) return [];
-  if (!filtro.value) return remitos.value;
-  const f = filtro.value.toLowerCase();
-  return remitos.value.filter(r => 
-    r.cliente_nombre?.toLowerCase().includes(f) || 
-    r.numero?.toString().includes(f)
-  );
+  
+  return remitos.value.filter(r => {
+    // 1. Buscamos coincidencias de texto (Nombre o Número)
+    const nombre = (r.cliente_nombre || "").toLowerCase();
+    const numero = (r.numero || r.id || "").toString().toLowerCase();
+    const busqueda = filtro.value.toLowerCase();
+    const matchBusqueda = nombre.includes(busqueda) || numero.includes(busqueda);
+
+    // 2. Filtramos por estado (Si es 'todos' pasa directo)
+    if (filtroEstado.value === 'todos') return matchBusqueda;
+    
+    // Normalizamos el estado de la base de datos para comparar
+    const estadoRemito = (r.estado || "pendiente").toLowerCase();
+    return matchBusqueda && estadoRemito === filtroEstado.value;
+  });
 });
 
-const formatFecha = (fechaStr) => {
-  if (!fechaStr) return '-';
-  return new Date(fechaStr).toLocaleDateString('es-AR');
-};
-
-const verDetalle = (id) => {
-  router.push(`/remitos/${id}`); // Asegúrate que sea plural
-};
-
-const imprimir = (remito) => { 
-  router.push({ 
-    name: 'DetalleRemito', 
-    params: { id: remito.id }, 
-    query: { imprimir: 'true' } 
-  });
-};
+const formatFecha = (f) => f ? new Date(f).toLocaleDateString('es-AR') : '-';
+const verDetalle = (id) => router.push(`/remitos/${id}`);
+const imprimir = (r) => router.push({ name: 'DetalleRemito', params: { id: r.id }, query: { imprimir: 'true' } });
 
 onMounted(cargarRemitos);
 </script>
 
 <style scoped>
-.remitos-container {
-  padding: 20px;
-  background-color: #fff;
-  border-radius: 8px;
-}
-
-.header-section {
+.remito-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 25px;
+  gap: 6px;
 }
 
-.actions {
-  display: flex;
-  gap: 15px;
-}
-
-.search-input {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  min-width: 250px;
-}
-
-.btn-primary {
-  background-color: #000;
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: 4px;
-  text-decoration: none;
-  font-weight: 500;
-  transition: opacity 0.2s;
-}
-
-.btn-primary:hover {
-  opacity: 0.8;
-}
-
-.minimal-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.minimal-table th {
-  text-align: left;
-  padding: 12px;
-  border-bottom: 2px solid #eee;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.minimal-table td {
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-}
-
-.text-right { text-align: right; }
-.text-center { padding: 40px; color: #999; }
-
-.badge {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: bold;
-}
-
-.badge.pendiente { background: #fff3cd; color: #856404; }
-.badge.entregado { background: #d4edda; color: #155724; }
-
-.btn-icon {
-  background: none;
-  border: none;
+.btn-action {
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: white;
   cursor: pointer;
-  margin-left: 10px;
-  font-size: 16px;
+  transition: all 0.2s;
 }
+
+.btn-status:hover {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.btn-delete-remito {
+  color: #ef4444;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.btn-delete-remito:hover {
+  background: #fee2e2;
+  transform: scale(1.05);
+}
+
+/* Estilo extra para el badge de "Entregado" */
+.status-badge.entregado {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+/* Reutilizamos la base de Stock para coherencia visual */
+.page-container { padding: 15px; max-width: 800px; margin: auto; background: #f8fafc; min-height: 100vh; }
+.glass-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+
+/* Header estilo JD */
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.btn-primary-jd { background: #1e293b; color: white; padding: 10px 18px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 0.9rem; }
+
+/* Tarjeta de Remito */
+.remito-main { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+.remito-number { font-size: 0.7rem; color: #94a3b8; font-weight: 800; }
+.cliente-name { font-size: 1.1rem; color: #1e293b; margin: 2px 0; font-weight: 700; }
+.remito-date { font-size: 0.8rem; color: #64748b; }
+
+/* Status Badges */
+.status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
+.status-badge.pendiente { background: #fff7ed; color: #ea580c; border: 1px solid #fdba74; }
+.status-badge.pagado { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+/* Footer de tarjeta */
+.remito-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 12px; }
+.remito-total .label { font-size: 0.65rem; color: #94a3b8; display: block; text-transform: uppercase; }
+.remito-total .amount { font-size: 1.1rem; font-weight: 800; color: #1e293b; }
+
+.remito-actions { display: flex; gap: 8px; }
+.btn-action { padding: 8px 14px; border-radius: 10px; border: 1px solid #e2e8f0; background: white; font-weight: 700; cursor: pointer; color: #475569; font-size: 0.85rem; }
+.btn-print { background: #f8fafc; color: #2563eb; border-color: #dbeafe; }
 </style>

@@ -1,44 +1,68 @@
 <template>
-  <div class="p-8 max-w-5xl mx-auto">
-    <header class="mb-8">
-      <h1 class="text-3xl font-extrabold text-slate-900">🛡️ Mantenimiento y Seguridad</h1>
-      <p class="text-slate-500">Gestiona la integridad de tus datos y la sincronización híbrida.</p>
+  <div class="page-container bg-slate-50 min-h-screen">
+    <header class="p-6 bg-white border-b border-slate-200">
+      <h1 class="text-2xl font-black text-slate-900 flex items-center gap-2">
+        <span class="text-indigo-600">🛡️</span> Mantenimiento
+      </h1>
+      <p class="text-sm text-slate-500 font-medium">JD Sistemasinformáticos - Gestión de Integridad</p>
     </header>
     
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <div class="card-modern bg-gradient-to-br from-indigo-600 to-blue-700 text-white p-8 rounded-2xl shadow-xl md:col-span-2">
-        <div class="flex items-center gap-4 mb-4">
-          <div class="bg-white/20 p-3 rounded-lg text-2xl">☁️</div>
-          <h3 class="font-bold text-xl">Sincronización Maestra con Supabase</h3>
-        </div>
-        <p class="mb-6 opacity-90 text-lg">Suba sus datos locales (Clientes, Stock y Caja) directamente a la base de datos centralizada. Ideal para trabajar en múltiples dispositivos.</p>
-        
-        <div class="flex flex-wrap gap-4">
+    <div class="p-4 max-w-4xl mx-auto space-y-4">
+      
+      <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-lg overflow-hidden relative">
+        <div class="relative z-10">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="bg-indigo-500 p-2 rounded-lg text-xl">☁️</span>
+            <h3 class="font-bold text-lg">Nube Supabase</h3>
+          </div>
+          <p class="text-slate-400 text-sm mb-6">Sincroniza el stock y clientes locales con la base de datos central.</p>
+          
           <button 
             @click="migrarALaNube" 
             :disabled="migrando"
-            class="bg-white text-indigo-600 px-8 py-4 rounded-xl font-black hover:scale-105 active:scale-95 transition shadow-lg disabled:opacity-50"
+            class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 py-4 rounded-xl font-bold transition-all disabled:opacity-50 flex justify-center items-center gap-2"
           >
-            {{ migrando ? '🚀 SINCRONIZANDO...' : '🚀 INICIAR MIGRACIÓN CLOUD' }}
+            <span v-if="migrando" class="animate-spin text-xl">🔄</span>
+            {{ migrando ? 'SINCRONIZANDO...' : 'INICIAR MIGRACIÓN CLOUD' }}
           </button>
         </div>
       </div>
 
-      <div class="card-modern bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-        <h3 class="font-bold text-slate-800 text-xl mb-3">Exportar Backup Local</h3>
-        <p class="text-slate-500 mb-6">Descarga una copia de seguridad en formato JSON. Útil como resguardo físico fuera de la plataforma.</p>
-        <button @click="exportarDatos" class="btn-secondary w-full">
-          📥 Descargar Backup (.json)
-        </button>
-      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="mb-4">
+            <h4 class="font-bold text-slate-800">Copia de Seguridad</h4>
+            <p class="text-xs text-slate-500">Exporta tus datos en formato JSON.</p>
+          </div>
+          <button @click="exportarDatos" class="btn-action-secondary">
+            📥 Descargar Backup
+          </button>
+        </div>
 
-      <div class="card-modern bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-        <h3 class="font-bold text-slate-800 text-xl mb-3 text-red-600">Restauración Crítica</h3>
-        <p class="text-slate-500 mb-6 font-medium">⚠️ Esta acción reemplazará los datos del navegador por los del archivo.</p>
-        <input type="file" id="fileInput" @change="importarDatos" class="hidden" accept=".json" />
-        <label for="fileInput" class="btn-danger w-full cursor-pointer inline-block text-center">
-          📤 Subir y Sobrescribir
-        </label>
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="mb-4">
+            <h4 class="font-bold text-red-600">Restauración</h4>
+            <p class="text-xs text-slate-500">Carga un archivo y pisa los datos locales.</p>
+          </div>
+          <input type="file" id="fileInput" @change="importarDatos" class="hidden" accept=".json" />
+          <label for="fileInput" class="btn-action-danger">
+            📤 Subir Archivo
+          </label>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm md:col-span-2">
+          <div class="flex justify-between items-center">
+            <div>
+              <h4 class="font-bold text-slate-800">Limpieza de Caché</h4>
+              <p class="text-xs text-slate-500">Borra los datos temporales del navegador.</p>
+            </div>
+            <button @click="limpiarLocal" class="text-red-500 font-bold text-sm hover:underline">
+              Borrar Todo
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -96,49 +120,66 @@ const importarDatos = (event) => {
 const migrarALaNube = async () => {
   if (migrando.value) return;
   
+  // 1. Intentamos obtener la sesión o usamos un ID por defecto para JD Sistemas
   const userStr = localStorage.getItem('contasoft_user_session');
-  if (!userStr) return alert("Debes estar logueado para migrar a la nube.");
+  let empresaId = 'emp_default'; // Valor por defecto por si no hay sesión
   
-  const user = JSON.parse(userStr);
-  const empresaId = user.empresaId;
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr);
+      empresaId = user.empresaId || 'emp_default';
+    } catch (e) {
+      console.error("Error al leer sesión:", e);
+    }
+  }
 
   const confirmacion = confirm("Se copiarán tus datos locales a Supabase. ¿Continuar?");
   if (!confirmacion) return;
 
   migrando.value = true;
   try {
-    // 1. MIGRAR CLIENTES
-    const clientesLocales = JSON.parse(localStorage.getItem(`${prefix}clientes_emp_default`) || '[]');
-    if (clientesLocales.length > 0) {
-      const { error: errC } = await supabase.from('clientes').insert(
-        clientesLocales.map(c => ({
-          nombre: c.nombre,
-          cuit: c.cuit,
-          empresa_id: empresaId, // Asignamos ID real de nube
-          condicion_iva: c.condicionIva || 'Consumidor Final'
-        }))
-      );
-      if (errC) throw errC;
-    }
-
-    // 2. MIGRAR STOCK
+    // --- MIGRAR STOCK ---
+    // Usamos el prefijo correcto para buscar en LocalStorage
     const stockLocal = JSON.parse(localStorage.getItem(`${prefix}stock_emp_default`) || '[]');
+    
     if (stockLocal.length > 0) {
-      const { error: errS } = await supabase.from('productos').insert(
+      const { error: errS } = await supabase.from('stock').insert(
         stockLocal.map(p => ({
           nombre: p.nombre,
-          precio: p.precioVenta || p.precio,
-          cantidad: p.cantidad,
+          codigo: p.codigo,
+          categoria: p.categoria,
+          precio_base: Number(p.precio_base) || 0,
+          precio_venta: Number(p.precio_publico) || Number(p.precio) || 0,
+          precio: Number(p.precio_publico) || Number(p.precio) || 0,
+          cantidad: Number(p.stock) || Number(p.cantidad) || 0,
+          ganancia_porcentaje: Number(p.ganancia_porcentaje) || 35,
+          stock_minimo: Number(p.stock_minimo) || 5,
           empresa_id: empresaId
         }))
       );
       if (errS) throw errS;
     }
 
-    alert("✅ ¡Sincronización Exitosa! Ya puedes borrar tus datos locales si lo deseas.");
+    // --- MIGRAR CLIENTES (Si tenés la tabla creada) ---
+    const clientesLocales = JSON.parse(localStorage.getItem(`${prefix}clientes_emp_default`) || '[]');
+    if (clientesLocales.length > 0) {
+      const { error: errC } = await supabase.from('clientes').insert(
+        clientesLocales.map(c => ({
+          nombre: c.nombre,
+          cuit: c.cuit,
+          empresa_id: empresaId,
+          condicion_iva: c.condicionIva || 'Consumidor Final'
+        }))
+      );
+      if (errC) {
+        console.warn("Error en clientes (puede que la tabla no exista):", errC.message);
+      }
+    }
+
+    alert("✅ ¡Sincronización Exitosa! Los datos ya están en la nube.");
   } catch (error) {
-    console.error(error);
-    alert("Error en migración: " + error.message);
+    console.error("Error detallado:", error);
+    alert("Error en migración: " + (error.message || "Revisá la consola"));
   } finally {
     migrando.value = false;
   }
@@ -168,5 +209,22 @@ const migrarALaNube = async () => {
 
 .card-modern {
   transition: transform 0.2s ease;
+}
+.btn-action-secondary {
+  @apply w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors;
+}
+
+.btn-action-danger {
+  @apply w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold text-sm hover:bg-red-100 transition-colors inline-block text-center cursor-pointer;
+}
+
+/* Ajuste para que en iOS el scroll sea suave */
+.page-container {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Efecto de presión en botones para feedback táctil */
+button:active {
+  transform: scale(0.98);
 }
 </style>
