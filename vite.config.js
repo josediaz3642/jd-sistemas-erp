@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vite'; // 👈 Aquí estaba el error, debe ser 'vite'
 import vue from '@vitejs/plugin-vue';
 import path from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   plugins: [
     vue(),
     VitePWA({
@@ -16,12 +16,12 @@ export default defineConfig(({ mode }) => ({
         display: "standalone",
         background_color: "#ffffff",
         theme_color: "#3b82f6",
-        lang: "es",
         icons: [
           {
-            src: "/logo.png",
+            src: "logo.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any maskable"
           },
         ],
       },
@@ -33,18 +33,14 @@ export default defineConfig(({ mode }) => ({
     },
   },
   server: {
+    host: true, 
+    port: 5173,
     hmr: {
-      protocol: "ws",
-      host: "localhost",
+      host: 'localhost',
     },
   },
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-      },
-    },
   },
-})); // <--- Aquí estaba el error, faltaban estos cierres correctamente
+});

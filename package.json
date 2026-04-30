@@ -2,7 +2,7 @@
   "name": "contasoft-erp",
   "version": "1.0.0",
   "description": "Contasoft ERP - PWA demo",
- "scripts": {
+  "scripts": {
     "dev": "vite",
     "build": "vite build --emptyOutDir",
     "preview": "vite preview"
@@ -15,6 +15,7 @@
     "html2pdf.js": "^0.14.0",
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.2",
+    "pinia": "^3.0.4",
     "qrcode": "^1.5.4",
     "vue": "^3.2.0",
     "vue-router": "^4.0.0",
@@ -23,8 +24,8 @@
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.2",
     "vite": "^7.2.6",
-    "vite-plugin-pwa": "^1.2.0",
-    "workbox-build": "^7.4.0",
+    "vite-plugin-pwa": "^0.19.8",
+    "workbox-build": "^7.0.0",
     "workbox-window": "^7.4.0"
   }
 }

@@ -1,13 +1,13 @@
-// main.js
-import { createApp } from "vue";
-import App from "./App.vue";
-import router from "./router/index.js";
-import "./assets/glass.css";
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import App from './App.vue'
+import router from './router'
+// import './style.css' // (Tus estilos globales)
 
-import { initializeDataService } from "./services/data.js";
-initializeDataService();
+const app = createApp(App)
+const pinia = createPinia() // 2. Crear la instancia de Pinia
 
-createApp(App)
-  .use(router)
-  .mount("#app");
+app.use(pinia) 
+app.use(router)
 
+app.mount('#app')

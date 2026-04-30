@@ -63,9 +63,11 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { loginUser, registerUser } from '@/services/auth';
+import { useAuthStore } from '@/stores/authStore'; // <-- Importamos Pinia
 
 const router = useRouter();
+const authStore = useAuthStore(); // <-- Instanciamos el store
+
 const cargando = ref(false);
 const errorMsg = ref('');
 const mostrandoRegistro = ref(false);
@@ -80,29 +82,28 @@ const handleLogin = async () => {
 
   try {
     cargando.value = true;
-    await loginUser(loginForm.value.email, loginForm.value.password);
-    router.push('/dashboard'); // Redirigir al panel
+    // Usamos el store para iniciar sesión
+    await authStore.login(loginForm.value.email, loginForm.value.password);
+    router.push('/dashboard'); 
   } catch (err) {
-    errorMsg.value = err.message;
+    errorMsg.value = "Credenciales incorrectas o error de conexión.";
   } finally {
     cargando.value = false;
   }
 };
 
-// LÓGICA DE REGISTRO (CREAR EMPRESA AISLADA)
+// LÓGICA DE REGISTRO
 const handleRegistro = async () => {
   errorMsg.value = '';
   try {
     cargando.value = true;
-    const usuarioCreado = await registerUser(registroForm.value);
+    // Usamos el store (asegurate de tener una acción register en tu authStore)
+    await authStore.register(registroForm.value.email, registroForm.value.password, registroForm.value.nombre);
     
-    // Opcional: Logear automáticamente tras registrarse
-    await loginUser(usuarioCreado.email, usuarioCreado.password);
-    
-    alert("¡Empresa creada con éxito! Bienvenido a Contasoft.");
+    alert("¡Espacio de trabajo creado! Bienvenido a Contasoft.");
     router.push('/dashboard');
   } catch (err) {
-    errorMsg.value = err.message;
+    errorMsg.value = err.message || "Error al crear la empresa.";
   } finally {
     cargando.value = false;
   }

@@ -1,29 +1,28 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { getCurrentUser } from "@/services/auth";
+import { useAuthStore } from '@/stores/authStore';
 
 // Imports de vistas
 import Login from "@/views/Login.vue";
 import Registro from "@/views/Registro.vue";
 import Dashboard from "@/views/Dashboard.vue";
-import Clientes from "@/views/Clientes.vue";
-import DetalleCliente from "@/views/DetalleCliente.vue";
-import Proveedores from "@/views/Proveedores.vue";
-import DetalleProveedor from "@/views/DetalleProveedor.vue";
 import Facturacion from "@/views/Facturacion.vue";
 import FacturaCliente from "@/views/FacturaCliente.vue";
-import Stock from "@/views/Stock.vue";
-import Cheques from "@/views/Cheques.vue";
-import Mantenimiento from "@/views/Mantenimiento.vue";
 import DetalleFactura from "@/views/DetalleFactura.vue";
+import Clientes from "@/views/Clientes.vue";
+import DetalleCliente from "@/views/DetalleCliente.vue";
 import ClienteDetalle from "@/views/ClienteDetalle.vue";
+import Proveedores from "@/views/Proveedores.vue";
+import DetalleProveedor from "@/views/DetalleProveedor.vue";
+import Stock from "@/views/Stock.vue";
 import Caja from "@/views/Caja.vue";
 import Ajustes from "@/views/Ajustes.vue";
-import NuevaCompra from "@/views/NuevaCompra.vue";
 import Reportes from "@/views/Reportes.vue";
+import Cheques from "@/views/Cheques.vue";
+import Mantenimiento from "@/views/Mantenimiento.vue";
 import Remitos from "@/views/Remitos.vue";
 
 const routes = [
-  { path: "/", name: "LoginRoot", component: Login },
+  { path: "/", redirect: "/login" },
   { path: "/login", name: "Login", component: Login },
   { path: "/registro", name: "Registro", component: Registro },
   { path: "/dashboard", name: "Dashboard", component: Dashboard },
@@ -36,21 +35,20 @@ const routes = [
   { path: "/clientes", component: Clientes },
   { path: "/cliente/nuevo", component: DetalleCliente },
   { path: "/cliente/:id", component: ClienteDetalle },
-  { path: '/cuentas-corrientes', name: 'CuentasCorrientes', component: () => import('../views/ResumenCuentas.vue') },
+  { path: "/cuentas-corrientes", name: "CuentasCorrientes", component: () => import('../views/ResumenCuentas.vue') },
   { path: "/stock", component: Stock },
   { path: "/stock/nuevo", component: () => import("@/views/DetalleStock.vue") },
   { path: "/stock/:id", component: () => import("@/views/DetalleStock.vue") },
   { path: "/proveedores", component: Proveedores },
   { path: "/proveedor/nuevo", component: DetalleProveedor },
   { path: "/proveedor/:id", component: DetalleProveedor },
-  { path: "/compras/nueva", component: NuevaCompra },
+  { path: "/compras/nueva", component: () => import("@/views/NuevaCompra.vue") },
   { path: "/cheques", component: Cheques },
+  { path: '/inventario', name: 'Inventario', component: () => import('@/views/Stock.vue') },
   { path: "/mantenimiento", component: Mantenimiento, meta: { role: ["admin"] } },
-  { path: "/remitos",name: "Remitos", component: Remitos },
-  { path: "/remitos/nuevo",name: "NuevoRemito", component: () => import("@/views/DetalleRemito.vue") 
-  },
-  { path: "/remitos/:id", name: "DetalleRemito",component: () => import("@/views/DetalleRemito.vue") 
-  }
+  { path: "/remitos", name: "Remitos", component: Remitos },
+  { path: "/remitos/nuevo", name: "NuevoRemito", component: () => import("@/views/DetalleRemito.vue") },
+  { path: "/remitos/:id", name: "DetalleRemito", component: () => import("@/views/DetalleRemito.vue") }
 ];
 
 const router = createRouter({
@@ -58,23 +56,25 @@ const router = createRouter({
   routes
 });
 
-// GUARDIA SIN ERRORES
-router.beforeEach((to, from, next) => {
-  const user = getCurrentUser();
+// GUARD DE NAVEGACIÓN
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore();
   
-  if (to.path === "/login" || to.path === "/") {
-    return next();
+  // Si hay una sesión en curso pero no está cargada en el Store, la recuperamos
+  if (!authStore.user && authStore.loading) {
+    await authStore.fetchSession();
   }
 
-  if (!user) {
-    return next("/login");
-  }
+  const isPublicPage = ['/login', '/registro'].includes(to.path);
+  const isAuthenticated = !!authStore.user;
 
-  if (to.meta?.role && !to.meta.role.includes(user.rol)) {
-    return next("/dashboard");
+  if (!isPublicPage && !isAuthenticated) {
+    next('/login');
+  } else if (isPublicPage && isAuthenticated) {
+    next('/dashboard');
+  } else {
+    next();
   }
-
-  next();
 });
 
 export default router;

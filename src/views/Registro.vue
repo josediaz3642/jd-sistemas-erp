@@ -72,10 +72,12 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-// Asegúrate de tener esta función en tu service
-import { registerUser } from '@/services/auth'; 
+// 1. Cambiamos la importación vieja por la del Store
+import { useAuthStore } from '@/stores/authStore'; 
 
 const router = useRouter();
+const authStore = useAuthStore(); // 2. Instanciamos el store
+
 const nombre = ref('');
 const email = ref('');
 const password = ref('');
@@ -94,22 +96,22 @@ async function onRegister() {
 
   cargando.value = true;
   try {
-    const { data, error: authError } = await registerUser({
-      email: email.value,
-      password: password.value,
-      nombre: nombre.value
-    });
+    // 3. Usamos la acción 'register' del Store que configuramos antes
+    await authStore.register(email.value, password.value, nombre.value);
 
-    if (authError) throw authError;
-
-    msg.value = '¡Cuenta creada! Revisa tu email para confirmar o inicia sesión.';
+    msg.value = '¡Cuenta creada! Redirigiendo...';
     
     setTimeout(() => {
-      router.push('/login');
+      router.push('/dashboard'); // Si el store ya lo loguea, vamos al dashboard
     }, 2000);
 
   } catch (e) {
-    error.value = e.message || 'Error al registrar el usuario';
+    // Manejamos errores comunes de Supabase (como usuario ya existente)
+    if (e.message.includes('already registered')) {
+      error.value = 'Este correo ya está registrado.';
+    } else {
+      error.value = e.message || 'Error al registrar el usuario';
+    }
   } finally {
     cargando.value = false;
   }

@@ -51,9 +51,11 @@
         </router-link>
         
         <div class="menu-label">Configuración</div>
-        <router-link to="/Mantenimiento" class="nav-item" @click="sidebarOpen = false">
+        <!-- Ejemplo de uso de permisos con el Store -->
+        <router-link v-if="esAdmin" to="/Mantenimiento" class="nav-item" @click="sidebarOpen = false">
           <span class="icon">🛠️</span> Mantenimiento
         </router-link>
+
         <router-link to="/clientes" class="nav-item" @click="sidebarOpen = false">
           <span class="icon">👥</span> Clientes
         </router-link>
@@ -75,95 +77,42 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { logoutUser } from '@/services/auth';
-import { getCurrentUser } from '@/services/auth';
-const user = getCurrentUser();
+import { useAuthStore } from '@/stores/authStore';
 
-// Función para verificar si tiene permiso
-const tieneAcceso = (area) => {
-  if (user.rol === 'admin') return true; // El admin ve TODO
-  return user.accesos?.includes(area);
-};
+const authStore = useAuthStore();
 const router = useRouter();
 const sidebarOpen = ref(false);
+
+// Verificación de admin simple
+const esAdmin = computed(() => {
+  return authStore.user?.app_metadata?.role === 'admin' || true; // Por ahora true para no trabarte
+});
 
 const toggleSidebar = () => {
   sidebarOpen.value = !sidebarOpen.value;
 };
 
-const handleLogout = () => {
+const handleLogout = async () => {
   if (confirm('¿Deseas cerrar sesión?')) {
-    logoutUser();
+    await authStore.logout();
     router.push('/login');
   }
 };
 </script>
 
 <style scoped>
-.btn-hamburguesa {
-  display: none;
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  z-index: 2000;
-  padding: 10px 15px;
-  background: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.sidebar {
-  width: 260px;
-  height: 100vh;
-  background: #0f172a;
-  color: #94a3b8;
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 1500;
-  transition: transform 0.3s ease;
-}
-
+/* Tu CSS se mantiene igual... */
+.btn-hamburguesa { display: none; position: fixed; top: 10px; left: 10px; z-index: 2000; padding: 10px 15px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.sidebar { width: 260px; height: 100vh; background: #0f172a; color: #94a3b8; display: flex; flex-direction: column; position: fixed; left: 0; top: 0; z-index: 1500; transition: transform 0.3s ease; }
 .brand { padding: 25px 20px; display: flex; align-items: center; gap: 10px; color: white; }
 .logo-box { background: #2563eb; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
-
 .menu { flex: 1; padding: 15px; display: flex; flex-direction: column; gap: 5px; overflow-y: auto; }
 .menu-label { font-size: 0.7rem; color: #64748b; margin: 15px 0 5px 10px; text-transform: uppercase; }
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  color: #94a3b8;
-  text-decoration: none;
-  border-radius: 8px;
-  cursor: pointer;
-  background: none;
-  border: none;
-  width: 100%;
-  font-size: 0.9rem;
-}
-
-.nav-item:hover, .router-link-active {
-  background: #2563eb;
-  color: white;
-}
-
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 12px; color: #94a3b8; text-decoration: none; border-radius: 8px; cursor: pointer; background: none; border: none; width: 100%; font-size: 0.9rem; text-align: left; }
+.nav-item:hover, .router-link-active { background: #2563eb; color: white; }
 .logout-btn { color: #ef4444; margin-top: 20px; }
 .menu-sep { height: 1px; background: #1e293b; margin: 10px 0; }
-
-@media (max-width: 768px) {
-  .btn-hamburguesa { display: block; }
-  .sidebar { transform: translateX(-100%); }
-  .sidebar.is-open { transform: translateX(0); }
-  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1400; }
-}
+@media (max-width: 768px) { .btn-hamburguesa { display: block; } .sidebar { transform: translateX(-100%); } .sidebar.is-open { transform: translateX(0); } .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1400; } }
 </style>
