@@ -1,230 +1,149 @@
 <template>
-  <div class="page-container bg-slate-50 min-h-screen">
-    <header class="p-6 bg-white border-b border-slate-200">
-      <h1 class="text-2xl font-black text-slate-900 flex items-center gap-2">
-        <span class="text-indigo-600">🛡️</span> Mantenimiento
+  <div class="page no-print">
+    <div class="card-glass header-section mb-6">
+      <h1 class="page-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Auditoría de Sistema
       </h1>
-      <p class="text-sm text-slate-500 font-medium">JD Sistemasinformáticos - Gestión de Integridad</p>
-    </header>
+      <p class="text-slate-500 text-sm mt-2">Registro de todas las acciones, movimientos de stock y caja realizados en la empresa.</p>
+    </div>
     
-    <div class="p-4 max-w-4xl mx-auto space-y-4">
-      
-      <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-lg overflow-hidden relative">
-        <div class="relative z-10">
-          <div class="flex items-center gap-3 mb-2">
-            <span class="bg-indigo-500 p-2 rounded-lg text-xl">☁️</span>
-            <h3 class="font-bold text-lg">Nube Supabase</h3>
-          </div>
-          <p class="text-slate-400 text-sm mb-6">Sincroniza el stock y clientes locales con la base de datos central.</p>
-          
-          <button 
-            @click="migrarALaNube" 
-            :disabled="migrando"
-            class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 py-4 rounded-xl font-bold transition-all disabled:opacity-50 flex justify-center items-center gap-2"
-          >
-            <span v-if="migrando" class="animate-spin text-xl">🔄</span>
-            {{ migrando ? 'SINCRONIZANDO...' : 'INICIAR MIGRACIÓN CLOUD' }}
-          </button>
-        </div>
+    <div class="card-glass p-0 overflow-hidden">
+      <div v-if="cargando" class="p-8 text-center text-slate-500">
+        <span class="cs-animate-spin inline-block text-2xl mb-2">🔄</span>
+        <p>Cargando registros...</p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div class="mb-4">
-            <h4 class="font-bold text-slate-800">Copia de Seguridad</h4>
-            <p class="text-xs text-slate-500">Exporta tus datos en formato JSON.</p>
-          </div>
-          <button @click="exportarDatos" class="btn-action-secondary">
-            📥 Descargar Backup
-          </button>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div class="mb-4">
-            <h4 class="font-bold text-red-600">Restauración</h4>
-            <p class="text-xs text-slate-500">Carga un archivo y pisa los datos locales.</p>
-          </div>
-          <input type="file" id="fileInput" @change="importarDatos" class="hidden" accept=".json" />
-          <label for="fileInput" class="btn-action-danger">
-            📤 Subir Archivo
-          </label>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm md:col-span-2">
-          <div class="flex justify-between items-center">
-            <div>
-              <h4 class="font-bold text-slate-800">Limpieza de Caché</h4>
-              <p class="text-xs text-slate-500">Borra los datos temporales del navegador.</p>
-            </div>
-            <button @click="limpiarLocal" class="text-red-500 font-bold text-sm hover:underline">
-              Borrar Todo
-            </button>
-          </div>
-        </div>
-
+      <table v-else class="cs-table">
+        <thead>
+          <tr>
+            <th>Fecha y Hora</th>
+            <th>Módulo</th>
+            <th>Tipo</th>
+            <th>Descripción / Acción</th>
+            <th class="text-right">Monto / Cant.</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="evento in eventos" :key="evento.id">
+            <td class="whitespace-nowrap font-mono text-sm text-slate-600">
+              {{ formatFecha(evento.fecha || evento.created_at) }}
+            </td>
+            <td>
+              <span class="cs-badge" :class="getBadgeClass(evento.modulo)">
+                {{ evento.modulo }}
+              </span>
+            </td>
+            <td>
+              <span class="cs-badge" :class="evento.tipo_movimiento === 'ENTRADA' || evento.tipo_movimiento === 'INGRESO' ? 'cs-badge-success' : (evento.tipo_movimiento === 'SALIDA' || evento.tipo_movimiento === 'EGRESO' ? 'cs-badge-error' : 'cs-badge-info')">
+                {{ evento.tipo_movimiento }}
+              </span>
+            </td>
+            <td>
+              <p class="text-sm font-medium text-slate-800">{{ evento.descripcion }}</p>
+              <p class="text-xs text-slate-500" v-if="evento.entidad_nombre">Ref: {{ evento.entidad_nombre }}</p>
+            </td>
+            <td class="text-right font-mono font-bold">
+              <span v-if="evento.monto > 0" class="text-slate-700">${{ evento.monto.toLocaleString() }}</span>
+              <span v-else-if="evento.cantidad > 0" class="text-indigo-600">{{ evento.cantidad }} und.</span>
+              <span v-else class="text-slate-400">-</span>
+            </td>
+          </tr>
+          <tr v-if="eventos.length === 0">
+            <td colspan="5" class="text-center p-8 text-slate-500">
+              No hay registros de actividad aún.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div class="p-4 bg-slate-50 border-t border-slate-200 text-center" v-if="eventos.length >= limit">
+        <button @click="cargarMas" class="cs-btn cs-btn-secondary cs-btn-sm">Cargar movimientos anteriores</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { supabase } from '@/supabase';
 
-const prefix = "contasoft_";
-const migrando = ref(false);
+const eventos = ref([]);
+const cargando = ref(true);
+const limit = ref(50);
 
-const exportarDatos = () => {
-  const data = {};
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key.startsWith(prefix)) {
-      data[key] = localStorage.getItem(key);
-    }
-  }
-
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `erp_cloud_backup_${new Date().toISOString().split('T')[0]}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
-const importarDatos = (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (confirm("¿Confirmar restauración? Se perderán los cambios no sincronizados.")) {
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith(prefix)) localStorage.removeItem(key);
-        });
-        Object.keys(data).forEach(key => {
-          localStorage.setItem(key, data[key]);
-        });
-        window.location.reload();
-      }
-    } catch (err) {
-      alert("Archivo de backup inválido.");
-    }
-  };
-  reader.readAsText(file);
-};
-
-const migrarALaNube = async () => {
-  if (migrando.value) return;
-  
-  // 1. Intentamos obtener la sesión o usamos un ID por defecto para JD Sistemas
-  const userStr = localStorage.getItem('contasoft_user_session');
-  let empresaId = 'emp_default'; // Valor por defecto por si no hay sesión
-  
-  if (userStr) {
-    try {
-      const user = JSON.parse(userStr);
-      empresaId = user.empresaId || 'emp_default';
-    } catch (e) {
-      console.error("Error al leer sesión:", e);
-    }
-  }
-
-  const confirmacion = confirm("Se copiarán tus datos locales a Supabase. ¿Continuar?");
-  if (!confirmacion) return;
-
-  migrando.value = true;
+const fetchEventos = async () => {
+  cargando.value = true;
   try {
-    // --- MIGRAR STOCK ---
-    // Usamos el prefijo correcto para buscar en LocalStorage
-    const stockLocal = JSON.parse(localStorage.getItem(`${prefix}stock_emp_default`) || '[]');
+    const user = JSON.parse(localStorage.getItem("contasoft_user_sesion"));
+    const empresaId = user ? user.empresa_id : null;
     
-    if (stockLocal.length > 0) {
-      const { error: errS } = await supabase.from('stock').insert(
-        stockLocal.map(p => ({
-          nombre: p.nombre,
-          codigo: p.codigo,
-          categoria: p.categoria,
-          precio_base: Number(p.precio_base) || 0,
-          precio_venta: Number(p.precio_publico) || Number(p.precio) || 0,
-          precio: Number(p.precio_publico) || Number(p.precio) || 0,
-          cantidad: Number(p.stock) || Number(p.cantidad) || 0,
-          ganancia_porcentaje: Number(p.ganancia_porcentaje) || 35,
-          stock_minimo: Number(p.stock_minimo) || 5,
-          empresa_id: empresaId
-        }))
-      );
-      if (errS) throw errS;
-    }
+    if (!empresaId) return;
 
-    // --- MIGRAR CLIENTES (Si tenés la tabla creada) ---
-    const clientesLocales = JSON.parse(localStorage.getItem(`${prefix}clientes_emp_default`) || '[]');
-    if (clientesLocales.length > 0) {
-      const { error: errC } = await supabase.from('clientes').insert(
-        clientesLocales.map(c => ({
-          nombre: c.nombre,
-          cuit: c.cuit,
-          empresa_id: empresaId,
-          condicion_iva: c.condicionIva || 'Consumidor Final'
-        }))
-      );
-      if (errC) {
-        console.warn("Error en clientes (puede que la tabla no exista):", errC.message);
-      }
-    }
+    const { data, error } = await supabase
+      .from('flujo_sistema')
+      .select('*')
+      .eq('empresa_id', empresaId)
+      .order('id', { ascending: false })
+      .limit(limit.value);
 
-    alert("✅ ¡Sincronización Exitosa! Los datos ya están en la nube.");
+    if (error) throw error;
+    eventos.value = data || [];
   } catch (error) {
-    console.error("Error detallado:", error);
-    alert("Error en migración: " + (error.message || "Revisá la consola"));
+    console.error("Error al cargar auditoría:", error);
   } finally {
-    migrando.value = false;
+    cargando.value = false;
   }
+};
+
+onMounted(() => {
+  fetchEventos();
+});
+
+const cargarMas = () => {
+  limit.value += 50;
+  fetchEventos();
+};
+
+const formatFecha = (isoString) => {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    return d.toLocaleString('es-AR', { 
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  } catch (e) {
+    return isoString;
+  }
+};
+
+const getBadgeClass = (modulo) => {
+  const map = {
+    'CAJA': 'cs-badge-success',
+    'STOCK': 'cs-badge-warning',
+    'FACTURACION': 'cs-badge-brand',
+    'SISTEMA': 'cs-badge-info'
+  };
+  return map[modulo?.toUpperCase()] || 'cs-badge-secondary';
 };
 </script>
 
 <style scoped>
-.btn-secondary {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 14px;
-  border-radius: 12px;
-  font-weight: 700;
-  transition: all 0.2s;
-}
-.btn-secondary:hover { background: #e2e8f0; }
-
-.btn-danger {
-  background: #fee2e2;
-  color: #ef4444;
-  padding: 14px;
-  border-radius: 12px;
-  font-weight: 700;
-  transition: all 0.2s;
-}
-.btn-danger:hover { background: #fecaca; }
-
-.card-modern {
-  transition: transform 0.2s ease;
-}
-.btn-action-secondary {
-  @apply w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors;
-}
-
-.btn-action-danger {
-  @apply w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold text-sm hover:bg-red-100 transition-colors inline-block text-center cursor-pointer;
-}
-
-/* Ajuste para que en iOS el scroll sea suave */
-.page-container {
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Efecto de presión en botones para feedback táctil */
-button:active {
-  transform: scale(0.98);
-}
+.page { padding: 24px; max-width: 1200px; margin: 0 auto; }
+.mb-6 { margin-bottom: 24px; }
+.whitespace-nowrap { white-space: nowrap; }
+.text-right { text-align: right; }
+.inline-block { display: inline-block; }
+.text-slate-500 { color: var(--cs-text-muted); }
+.text-slate-600 { color: var(--cs-text-secondary); }
+.text-slate-700 { color: var(--cs-text-primary); }
+.text-slate-800 { color: var(--cs-text-primary); font-weight: 600; }
+.bg-slate-50 { background-color: var(--cs-bg-secondary); }
+.border-t { border-top: 1px solid var(--cs-border-soft); }
+.p-0 { padding: 0; }
+.p-4 { padding: 16px; }
+.p-8 { padding: 32px; }
+.mt-2 { margin-top: 8px; }
 </style>

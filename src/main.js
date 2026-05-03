@@ -2,10 +2,10 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
-// import './style.css' // (Tus estilos globales)
+import './styles/design-tokens.css'
 
 const app = createApp(App)
-const pinia = createPinia() // 2. Crear la instancia de Pinia
+const pinia = createPinia()
 
 app.use(pinia) 
 app.use(router)

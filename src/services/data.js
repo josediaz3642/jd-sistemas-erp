@@ -1,6 +1,6 @@
 import { supabase } from "@/supabase";
 
-const getEmpresaId = () => {
+export const getEmpresaId = () => {
   const user = JSON.parse(localStorage.getItem("contasoft_user_sesion"));
   return user ? user.empresa_id : 'emp_default';
 };
@@ -24,15 +24,32 @@ export async function registrarEvento(datos) {
 
 // --- 2. EMPRESA ---
 export async function getEmpresa() {
-  const { data } = await supabase.from('empresa').select('*').eq('empresa_id', getEmpresaId()).single();
-  return data;
+  const { data } = await supabase.from('empresas').select('*').eq('id', getEmpresaId()).maybeSingle();
+  
+  // Mix with local storage for frontend-only fields
+  const localDataStr = localStorage.getItem(`empresa_local_${getEmpresaId()}`);
+  const localData = localDataStr ? JSON.parse(localDataStr) : {};
+  
+  return { ...data, ...localData };
 }
 
 export async function saveEmpresa(empData) {
-  const payload = { ...empData, empresa_id: getEmpresaId() };
-  const { data, error } = await supabase.from('empresa').upsert(payload, { onConflict: 'empresa_id' }).select();
+  const payload = { ...empData, id: getEmpresaId() };
+  
+  // Guardar campos extra en local storage ya que no existen en Supabase
+  const localFields = ['nombre', 'logo', 'punto_venta', 'proximo_numero'];
+  const localData = {};
+  localFields.forEach(f => {
+    if (payload[f] !== undefined) {
+      localData[f] = payload[f];
+      delete payload[f];
+    }
+  });
+  localStorage.setItem(`empresa_local_${getEmpresaId()}`, JSON.stringify(localData));
+
+  const { data, error } = await supabase.from('empresas').upsert(payload, { onConflict: 'id' }).select();
   if (error) throw error;
-  return data ? data[0] : null;
+  return data ? { ...data[0], ...localData } : null;
 }
 
 // --- 3. CLIENTES ---
@@ -68,9 +85,19 @@ export async function getFacturaById(id) {
 
 export async function getNextNumeroFactura() {
   try {
+    // Check if user set a custom starting number in Settings
+    const localDataStr = localStorage.getItem(`empresa_local_${getEmpresaId()}`);
+    const localData = localDataStr ? JSON.parse(localDataStr) : {};
+    const baseNumero = localData.proximo_numero ? parseInt(localData.proximo_numero) - 1 : 0;
+
     const { data } = await supabase.from('facturas').select('numero').eq('empresa_id', getEmpresaId()).order('numero', { ascending: false }).limit(1);
-    const ultimo = (data && data.length > 0) ? parseInt(data[0].numero) : 0;
-    return (ultimo + 1).toString().padStart(8, '0');
+    const ultimo = (data && data.length > 0) ? parseInt(data[0].numero) : baseNumero;
+    
+    // Auto-update proximo_numero in localStorage
+    localData.proximo_numero = ultimo + 2;
+    localStorage.setItem(`empresa_local_${getEmpresaId()}`, JSON.stringify(localData));
+
+    return (Math.max(ultimo, baseNumero) + 1).toString().padStart(8, '0');
   } catch (err) { return "00000001"; }
 }
 
@@ -78,7 +105,7 @@ export async function saveFactura(f) {
   const payload = {
     empresa_id: getEmpresaId(),
     numero: f.numero,
-    cliente_id: f.cliente_id,
+    cliente_id: f.cliente_id || null,
     cliente_nombre: f.cliente_nombre,
     total: Number(f.total) || 0,
     items: f.items || [],
@@ -189,8 +216,12 @@ export async function getProveedorById(id) {
 
 export async function saveProveedor(p) {
   const payload = { ...p, empresa_id: getEmpresaId() };
-  if (!p.id || p.id === 'nuevo') delete payload.id;
-  return await supabase.from('proveedores').upsert(payload).select();
+  if (!p.id || p.id === 'nuevo') {
+    delete payload.id;
+    return await supabase.from('proveedores').insert([payload]).select();
+  } else {
+    return await supabase.from('proveedores').update(payload).eq('id', p.id).select();
+  }
 }
 
 // --- 8. CAJA Y MÉTRICAS ---
@@ -275,7 +306,7 @@ export async function registrarMovimientoCaja(tipo, monto, concepto, categoria =
     concepto: concepto,
     categoria: categoria,
     metodo_pago: metodo,
-    cliente_id: clienteId,
+    cliente_id: clienteId || null,
     fecha: new Date().toISOString()
   };
 
@@ -312,7 +343,7 @@ export async function registrarMovimientoFactura(factura, metodoPago) {
   if (metodoPago === 'Cuenta Corriente') {
     const payloadCtaCte = {
       empresa_id: eid,
-      cliente_id: factura.cliente_id,
+      cliente_id: factura.cliente_id || null,
       factura_id: factura.id,
       monto_original: factura.total,
       saldo_pendiente: factura.total,

@@ -4,7 +4,7 @@
     class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
     @click.self="$emit('close')"
   >
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-white/20">
+    <div class="cs-glass rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-white/20">
       
       <div :class="tipo === 'ND' ? 'bg-blue-600' : 'bg-green-600'" class="p-5 text-white">
         <h3 class="text-xl font-bold">
@@ -13,29 +13,31 @@
         <p class="text-sm opacity-80 mt-1">Cliente: {{ clienteNombre }}</p>
       </div>
 
-      <div class="p-6 bg-gray-50">
+      <div class="p-6" style="background: var(--cs-bg-primary)">
         <form @submit.prevent="guardarAjuste">
           
           <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-bold mb-2">Monto a ajustar ($)</label>
+            <label class="block text-sm font-bold mb-2" style="color: var(--cs-text-secondary)">Monto a ajustar ($)</label>
             <input 
               v-model.number="form.monto" 
               type="number" 
               step="0.01"
               required
               autofocus
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none transition"
+              class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+              style="background: var(--cs-bg-secondary); color: var(--cs-text-primary); border-color: var(--cs-border-soft);"
               placeholder="0.00"
             />
           </div>
 
           <div class="mb-6">
-            <label class="block text-gray-700 text-sm font-bold mb-2">Motivo del ajuste</label>
+            <label class="block text-sm font-bold mb-2" style="color: var(--cs-text-secondary)">Motivo del ajuste</label>
             <textarea 
               v-model="form.motivo" 
               required
               rows="3"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none transition"
+              class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+              style="background: var(--cs-bg-secondary); color: var(--cs-text-primary); border-color: var(--cs-border-soft);"
               placeholder="Ej: Recargo por flete, Descuento especial..."
             ></textarea>
           </div>
@@ -44,7 +46,8 @@
             <button 
               type="button" 
               @click="$emit('close')"
-              class="px-5 py-2.5 text-gray-500 hover:bg-gray-200 rounded-lg font-medium transition"
+              class="px-5 py-2.5 rounded-lg font-medium transition"
+              style="color: var(--cs-text-secondary); background: transparent; border: 1px solid var(--cs-border-medium);"
             >
               Cancelar
             </button>

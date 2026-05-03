@@ -40,23 +40,24 @@
           </div>
         </div>
 
-        <div class="input-group">
-          <label>Dirección Comercial</label>
-          <input 
-            v-model="cliente.direccion" 
-            placeholder="Calle 123, Ciudad" 
-            :disabled="enviando"
-          />
-        </div>
-
-        <div class="input-group">
-          <label>Correo Electrónico</label>
-          <input 
-            v-model="cliente.email" 
-            type="email"
-            placeholder="email@cliente.com" 
-            :disabled="enviando"
-          />
+        <div class="grid-inputs">
+          <div class="input-group">
+            <label>Teléfono</label>
+            <input 
+              v-model="cliente.telefono" 
+              placeholder="Ej: +54 9 11 1234-5678" 
+              :disabled="enviando"
+            />
+          </div>
+          <div class="input-group">
+            <label>Correo Electrónico</label>
+            <input 
+              v-model="cliente.email" 
+              type="email"
+              placeholder="email@cliente.com" 
+              :disabled="enviando"
+            />
+          </div>
         </div>
 
         <div class="form-actions">
@@ -83,6 +84,7 @@ const cliente = reactive({
   cuit: "",
   direccion: "",
   email: "",
+  telefono: "",
   condicion_iva: "Consumidor Final"
 });
 

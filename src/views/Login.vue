@@ -1,61 +1,61 @@
 <template>
-  <div class="auth-wrapper">
-    <div class="auth-card card-glass">
-      <div class="brand-section">
-        <div class="logo-box">C</div>
-        <h1>Contasoft <span>ERP</span></h1>
-        <p class="subtitle">JD Sistemasinformáticos</p>
+  <div class="auth-page">
+    <div class="auth-left">
+      <div class="auth-left-content">
+        <LogoContasoft :size="44" />
+        <h1>Bienvenido<br/>de vuelta.</h1>
+        <p>Accedé a tu espacio de gestión empresarial y retomá el control de tu negocio.</p>
+        <div class="auth-features">
+          <div class="af"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Datos encriptados y seguros</div>
+          <div class="af"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Base de datos aislada por empresa</div>
+          <div class="af"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Acceso desde cualquier dispositivo</div>
+        </div>
       </div>
+    </div>
 
-      <form v-if="!mostrandoRegistro" @submit.prevent="handleLogin" class="auth-form">
-        <h2>Iniciar Sesión</h2>
-        <div class="input-group">
-          <label>Email</label>
-          <input v-model="loginForm.email" type="email" placeholder="admin@admin.com" required />
-        </div>
-        <div class="input-group">
-          <label>Contraseña</label>
-          <input v-model="loginForm.password" type="password" placeholder="••••••••" required />
-        </div>
-        
-        <div v-if="errorMsg" class="error-badge">{{ errorMsg }}</div>
-
-        <button type="submit" class="btn-primary" :disabled="cargando">
-          {{ cargando ? 'Verificando...' : 'Entrar 🚀' }}
-        </button>
-        
-        <p class="switch-text">
-          ¿No tienes cuenta? <a @click.prevent="mostrandoRegistro = true">Regístrate aquí</a>
-        </p>
-      </form>
-
-      <form v-else @submit.prevent="handleRegistro" class="auth-form">
-        <h2>Crear Nueva Empresa</h2>
-        <p class="info-text">Obtén tu propio espacio de base de datos aislado y único.</p>
-        
-        <div class="input-group">
-          <label>Tu Nombre Completo</label>
-          <input v-model="registroForm.nombre" type="text" placeholder="Juan Pérez" required />
-        </div>
-        <div class="input-group">
-          <label>Email Corporativo</label>
-          <input v-model="registroForm.email" type="email" placeholder="contacto@tuempresa.com" required />
-        </div>
-        <div class="input-group">
-          <label>Contraseña (Mín. 6 caracteres)</label>
-          <input v-model="registroForm.password" type="password" placeholder="••••••••" required minlength="6"/>
+    <div class="auth-right">
+      <div class="auth-card">
+        <div class="auth-card-header">
+          <div class="mobile-logo"><LogoContasoft :size="36" /></div>
+          <h2>Iniciar Sesión</h2>
+          <p>Ingresá tus credenciales para acceder</p>
         </div>
 
-        <div v-if="errorMsg" class="error-badge">{{ errorMsg }}</div>
+        <form @submit.prevent="handleLogin" class="auth-form">
+          <div class="field">
+            <label>Email</label>
+            <div class="input-wrapper">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="input-icon"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <input v-model="loginForm.email" type="email" placeholder="tu@empresa.com" required />
+            </div>
+          </div>
+          <div class="field">
+            <label>Contraseña</label>
+            <div class="input-wrapper">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="input-icon"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input v-model="loginForm.password" type="password" placeholder="••••••••" required />
+            </div>
+          </div>
+          
+          <transition name="fade">
+            <div v-if="errorMsg" class="error-msg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              {{ errorMsg }}
+            </div>
+          </transition>
 
-        <button type="submit" class="btn-success" :disabled="cargando">
-          {{ cargando ? 'Creando espacio...' : 'Crear Mi ERP ✅' }}
-        </button>
+          <button type="submit" class="btn-submit" :disabled="cargando">
+            <span v-if="cargando" class="spinner-sm"></span>
+            {{ cargando ? 'Verificando...' : 'Ingresar' }}
+            <svg v-if="!cargando" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </form>
 
-        <p class="switch-text">
-          ¿Ya tienes cuenta? <a @click.prevent="mostrandoRegistro = false">Volver al Login</a>
-        </p>
-      </form>
+        <div class="auth-footer">
+          <p>¿No tenés cuenta? <router-link to="/registro">Registrate gratis</router-link></p>
+          <router-link to="/" class="back-link">← Volver al inicio</router-link>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -63,26 +63,20 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/authStore'; // <-- Importamos Pinia
+import { useAuthStore } from '@/stores/authStore';
+import LogoContasoft from '@/components/LogoContasoft.vue';
 
 const router = useRouter();
-const authStore = useAuthStore(); // <-- Instanciamos el store
-
+const authStore = useAuthStore();
 const cargando = ref(false);
 const errorMsg = ref('');
-const mostrandoRegistro = ref(false);
-
 const loginForm = ref({ email: '', password: '' });
-const registroForm = ref({ nombre: '', email: '', password: '' });
 
-// LÓGICA DE LOGIN
 const handleLogin = async () => {
   errorMsg.value = '';
   if (!loginForm.value.email || !loginForm.value.password) return;
-
   try {
     cargando.value = true;
-    // Usamos el store para iniciar sesión
     await authStore.login(loginForm.value.email, loginForm.value.password);
     router.push('/dashboard'); 
   } catch (err) {
@@ -91,71 +85,202 @@ const handleLogin = async () => {
     cargando.value = false;
   }
 };
-
-// LÓGICA DE REGISTRO
-const handleRegistro = async () => {
-  errorMsg.value = '';
-  try {
-    cargando.value = true;
-    // Usamos el store (asegurate de tener una acción register en tu authStore)
-    await authStore.register(registroForm.value.email, registroForm.value.password, registroForm.value.nombre);
-    
-    alert("¡Espacio de trabajo creado! Bienvenido a Contasoft.");
-    router.push('/dashboard');
-  } catch (err) {
-    errorMsg.value = err.message || "Error al crear la empresa.";
-  } finally {
-    cargando.value = false;
-  }
-};
 </script>
 
 <style scoped>
-/* Estilos Monocromáticos JD Sistemas */
-.auth-wrapper {
-  height: 100vh;
+.auth-page {
   display: flex;
-  justify-content: center;
+  min-height: 100vh;
+}
+
+/* Left Panel */
+.auth-left {
+  flex: 1;
+  background: var(--cs-gradient-hero);
+  display: flex;
   align-items: center;
-  background: #f1f5f9; /* Fondo gris muy suave */
+  justify-content: center;
+  padding: 60px;
+  position: relative;
+  overflow: hidden;
+}
+.auth-left::after {
+  content: '';
+  position: absolute;
+  bottom: -50%;
+  right: -30%;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(79,70,229,0.15) 0%, transparent 70%);
+}
+
+.auth-left-content {
+  max-width: 420px;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-left-content h1 {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 24px 0 16px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.auth-left-content p {
+  font-size: 1rem;
+  color: rgba(148,163,184,0.8);
+  line-height: 1.7;
+  margin-bottom: 32px;
+}
+
+.auth-features { display: flex; flex-direction: column; gap: 12px; }
+.af {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: rgba(148,163,184,0.7);
+  font-weight: 500;
+}
+.af svg { stroke: var(--cs-accent-400); flex-shrink: 0; }
+
+/* Right Panel */
+.auth-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: var(--cs-bg-root);
 }
 
 .auth-card {
-  background: white;
   width: 100%;
   max-width: 400px;
-  padding: 40px;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-  border: 1px solid #e2e8f0;
 }
 
-.brand-section { text-align: center; margin-bottom: 30px; }
-.logo-box { background: #0f172a; color: white; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; margin: 0 auto 10px; font-weight: bold; font-size: 1.2rem; }
-.brand-section h1 { font-size: 1.5rem; margin: 0; color: #0f172a; }
-.brand-section h1 span { color: #64748b; font-weight: 300; }
-.subtitle { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
+.auth-card-header {
+  margin-bottom: 32px;
+}
+.mobile-logo { display: none; margin-bottom: 20px; }
+.auth-card-header h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--cs-text-primary);
+  margin-bottom: 6px;
+}
+.auth-card-header p {
+  font-size: 0.85rem;
+  color: var(--cs-text-muted);
+}
 
-.auth-form h2 { font-size: 1.1rem; text-align: center; margin-bottom: 20px; color: #334155; }
-.info-text { font-size: 0.8rem; color: #64748b; text-align: center; margin-top: -15px; margin-bottom: 20px; }
+/* Form */
+.auth-form { display: flex; flex-direction: column; gap: 20px; }
 
-.input-group { margin-bottom: 15px; }
-.input-group label { display: block; font-size: 0.8rem; font-weight: bold; color: #475569; margin-bottom: 5px; }
-.input-group input { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; transition: 0.2s; }
-.input-group input:focus { border-color: #0f172a; outline: none; box-shadow: 0 0 0 3px rgba(15,23,42,0.1); }
+.field label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--cs-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
 
-.error-badge { background: #fee2e2; color: #ef4444; padding: 10px; border-radius: 6px; font-size: 0.8rem; text-align: center; margin-bottom: 15px; border: 1px solid #fecaca; }
+.input-wrapper {
+  position: relative;
+}
+.input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cs-text-muted);
+  pointer-events: none;
+}
+.input-wrapper input {
+  padding-left: 42px !important;
+  height: 46px;
+  border-radius: var(--cs-radius-md) !important;
+}
 
-.btn-primary, .btn-success { width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
-.btn-primary { background: #0f172a; color: white; }
-.btn-primary:hover { background: #1e293b; }
+.error-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--cs-error-bg);
+  color: var(--cs-error);
+  padding: 10px 14px;
+  border-radius: var(--cs-radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid rgba(239,68,68,0.15);
+}
 
-.btn-success { background: #16a34a; color: white; }
-.btn-success:hover { background: #15803d; }
+.btn-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  background: var(--cs-gradient-brand);
+  color: white;
+  border: none;
+  border-radius: var(--cs-radius-md);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(79,70,229,0.3);
+  transition: all var(--cs-transition);
+}
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(79,70,229,0.4);
+}
+.btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.spinner-sm {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: cs-spin 0.8s linear infinite;
+}
 
-.switch-text { font-size: 0.8rem; text-align: center; color: #64748b; margin-top: 20px; }
-.switch-text a { color: #2563eb; cursor: pointer; font-weight: bold; text-decoration: none; }
-.switch-text a:hover { text-decoration: underline; }
+/* Footer */
+.auth-footer {
+  margin-top: 28px;
+  text-align: center;
+}
+.auth-footer p {
+  font-size: 0.85rem;
+  color: var(--cs-text-muted);
+}
+.auth-footer a {
+  color: var(--cs-brand-500);
+  font-weight: 700;
+  text-decoration: none;
+}
+.auth-footer a:hover { text-decoration: underline; }
+.back-link {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: var(--cs-text-muted) !important;
+  font-weight: 500 !important;
+}
+
+.fade-enter-active, .fade-leave-active { transition: all 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-5px); }
+
+@media (max-width: 900px) {
+  .auth-left { display: none; }
+  .auth-right { padding: 24px; }
+  .mobile-logo { display: block; }
+}
 </style>

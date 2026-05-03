@@ -8,7 +8,8 @@ import {
   registrarEvento,
   getClientes,     
   getProveedores,   
-  registrarMovimientoCtaCte  
+  registrarMovimientoCtaCte,
+  getEmpresaId
 } from '@/services/data';
 
 const cheques = ref([]);
@@ -91,7 +92,7 @@ async function guardar() {
         monto: payload.monto,
         metodo_pago: `Cheque #${payload.numero} (${payload.banco})`,
         fecha: new Date().toISOString(),
-        empresa_id: 'emp_default' // O el ID de tu sesión
+        empresa_id: getEmpresaId()
       }]);
     }
 

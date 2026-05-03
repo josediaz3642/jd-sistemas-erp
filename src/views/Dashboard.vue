@@ -1,28 +1,16 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
-// Importamos las funciones de data (asegúrate de que este archivo exista)
 import { getDashboardKPIs, getFacturas, getClientes } from '@/services/data';
 
 const authStore = useAuthStore();
 const loading = ref(true);
 const clientes = ref([]);
 const ultimasFacturas = ref([]);
-const kpis = ref({ 
-  totalFacturado: 0, 
-  totalFacturas: 0, 
-  totalClientes: 0, 
-  stockBajo: 0 
-});
+const kpis = ref({ totalFacturado: 0, totalFacturas: 0, totalClientes: 0, stockBajo: 0 });
 
-const fechaActual = new Date().toLocaleDateString('es-AR', { 
-  weekday: 'long', 
-  year: 'numeric', 
-  month: 'long', 
-  day: 'numeric' 
-});
+const fechaActual = new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-// Función para obtener el nombre del cliente si no viene en la factura
 const getNombreCliente = (id) => {
   const cliente = clientes.value.find(c => c.id === id);
   return cliente ? cliente.nombre : 'Cliente Desconocido';
@@ -31,21 +19,13 @@ const getNombreCliente = (id) => {
 async function refreshDashboard() {
   loading.value = true;
   try {
-    // Ejecutamos las consultas en paralelo para mayor velocidad
     const [resKPIs, resFacturas, resClientes] = await Promise.all([
-      getDashboardKPIs(),
-      getFacturas(),
-      getClientes()
+      getDashboardKPIs(), getFacturas(), getClientes()
     ]);
-
     kpis.value = resKPIs || kpis.value;
     clientes.value = resClientes || [];
-    
-    // Ordenamos facturas por fecha descendente
     if (resFacturas) {
-      ultimasFacturas.value = [...resFacturas]
-        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-        .slice(0, 5);
+      ultimasFacturas.value = [...resFacturas].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 5);
     }
   } catch (error) {
     console.error("Error cargando dashboard:", error);
@@ -55,92 +35,118 @@ async function refreshDashboard() {
 }
 
 onMounted(async () => {
-  // ELIMINAMOS la línea de getCurrentUser() que causaba el error
   console.log("Dashboard cargado para:", authStore.user?.email);
   await refreshDashboard();
 });
 </script>
 
 <template>
-  <div class="dashboard-container">
+  <div class="dashboard">
+    <!-- Header -->
     <header class="db-header">
-      <div class="header-content">
-        <!-- Usamos authStore directamente para el nombre -->
-        <h1>Bienvenido, {{ authStore.user?.email.split('@')[0] || 'Usuario' }}</h1>
-        <p class="subtitle">Estado actual de tu empresa.</p>
+      <div>
+        <h1 class="db-title">
+          Hola, <span class="gradient-text">{{ authStore.user?.email.split('@')[0] || 'Usuario' }}</span>
+        </h1>
+        <p class="db-subtitle">Estado actual de tu empresa.</p>
       </div>
-      <div class="date-badge">{{ fechaActual }}</div>
+      <div class="date-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        {{ fechaActual }}
+      </div>
     </header>
 
-    <div v-if="loading" class="loader-container glass-card">
-      <div class="spinner"></div>
+    <!-- Loading -->
+    <div v-if="loading" class="loader-box">
+      <div class="spinner-lg"></div>
       <p>Consultando base de datos...</p>
     </div>
 
     <template v-else>
+      <!-- KPIs -->
       <div class="kpi-grid">
-        <div class="kpi-card glass-card">
-          <div class="kpi-icon blue">💰</div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
           <div class="kpi-data">
-            <span>Total Facturado</span>
-            <h3>${{ (kpis.totalFacturado || 0).toLocaleString() }}</h3>
+            <span class="kpi-label">Total Facturado</span>
+            <h3 class="kpi-value">${{ (kpis.totalFacturado || 0).toLocaleString() }}</h3>
           </div>
         </div>
 
-        <div class="kpi-card glass-card">
-          <div class="kpi-icon green">📄</div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-green">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
           <div class="kpi-data">
-            <span>Comprobantes</span>
-            <h3>{{ kpis.totalFacturas || 0 }}</h3>
+            <span class="kpi-label">Comprobantes</span>
+            <h3 class="kpi-value">{{ kpis.totalFacturas || 0 }}</h3>
           </div>
         </div>
 
-        <div class="kpi-card glass-card">
-          <div class="kpi-icon purple">👥</div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-purple">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          </div>
           <div class="kpi-data">
-            <span>Clientes Activos</span>
-            <h3>{{ kpis.totalClientes || 0 }}</h3>
+            <span class="kpi-label">Clientes Activos</span>
+            <h3 class="kpi-value">{{ kpis.totalClientes || 0 }}</h3>
           </div>
         </div>
 
-        <div class="kpi-card glass-card" :class="{ 'warning-border': (kpis.stockBajo || 0) > 0 }">
-          <div class="kpi-icon orange">📦</div>
+        <div class="kpi-card" :class="{ 'kpi-alert': (kpis.stockBajo || 0) > 0 }">
+          <div class="kpi-icon kpi-orange">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          </div>
           <div class="kpi-data">
-            <span>Stock Crítico</span>
-            <h3 :class="{ 'text-danger': (kpis.stockBajo || 0) > 0 }">{{ kpis.stockBajo || 0 }} items</h3>
+            <span class="kpi-label">Stock Crítico</span>
+            <h3 class="kpi-value" :class="{ 'text-danger': (kpis.stockBajo || 0) > 0 }">{{ kpis.stockBajo || 0 }} items</h3>
           </div>
         </div>
       </div>
 
-      <div class="charts-section">
-        <div class="quick-actions-container">
-          <h3>Acceso Rápido</h3>
+      <!-- Content Grid -->
+      <div class="content-grid">
+        <!-- Quick Actions -->
+        <div class="quick-panel">
+          <h3 class="panel-title">Acceso Rápido</h3>
           <div class="quick-actions">
-            <!-- Corregimos las rutas según lo que el router espera -->
-            <button @click="$router.push('/facturacion')" class="action-btn primary">+ Nueva Venta</button>
-            <button @click="$router.push('/stock')" class="action-btn">📦 Stock / Inventario</button>
-            <button @click="$router.push('/clientes')" class="action-btn">👥 Clientes</button>
+            <button @click="$router.push('/facturacion')" class="qa-btn qa-primary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nueva Venta
+            </button>
+            <button @click="$router.push('/stock')" class="qa-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              Inventario
+            </button>
+            <button @click="$router.push('/clientes')" class="qa-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              Clientes
+            </button>
+            <button @click="$router.push('/cheques')" class="qa-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              Cheques
+            </button>
           </div>
         </div>
 
-        <div class="recent-activity glass-card">
-          <div class="section-header">
-            <h3>Últimas Facturas</h3>
-          </div>
+        <!-- Recent Activity -->
+        <div class="recent-panel">
+          <h3 class="panel-title">Últimas Facturas</h3>
           <div class="table-wrapper">
             <table class="db-table">
               <thead>
-                <tr>
-                  <th>Nº</th>
-                  <th>Cliente</th>
-                  <th>Total</th>
-                </tr>
+                <tr><th>Nº</th><th>Cliente</th><th>Total</th></tr>
               </thead>
               <tbody>
                 <tr v-for="f in ultimasFacturas" :key="f.id">
-                  <td class="font-mono">#{{ String(f.numero_factura || f.numero || 0).slice(-4) }}</td>
-                  <td class="text-truncate">{{ f.cliente_nombre || getNombreCliente(f.cliente_id) }}</td>
-                  <td class="font-bold">${{ Number(f.total || 0).toLocaleString() }}</td>
+                  <td class="font-mono td-num">#{{ String(f.numero_factura || f.numero || 0).slice(-4) }}</td>
+                  <td class="td-name">{{ f.cliente_nombre || getNombreCliente(f.cliente_id) }}</td>
+                  <td class="font-mono td-total">${{ Number(f.total || 0).toLocaleString() }}</td>
+                </tr>
+                <tr v-if="ultimasFacturas.length === 0">
+                  <td colspan="3" class="empty-row">Sin facturas recientes</td>
                 </tr>
               </tbody>
             </table>
@@ -152,40 +158,88 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* Tus estilos están perfectos, mantenelos igual */
-.dashboard-container { padding: 20px; max-width: 1400px; margin: auto; display: flex; flex-direction: column; gap: 20px; }
-.db-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
-.db-header h1 { font-size: 1.6rem; font-weight: 800; color: #0f172a; text-transform: capitalize; }
-.date-badge { background: #f1f5f9; padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; color: #475569; font-weight: 600; }
-.glass-card { background: white; border-radius: 20px; border: 1px solid #f1f5f9; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
-.kpi-card { padding: 18px; display: flex; align-items: center; gap: 15px; }
-.kpi-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
-.blue { background: #eff6ff; color: #2563eb; }
-.green { background: #f0fdf4; color: #16a34a; }
-.purple { background: #faf5ff; color: #9333ea; }
-.orange { background: #fff7ed; color: #ea580c; }
-.charts-section { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
-.quick-actions-container h3 { font-size: 0.9rem; color: #64748b; margin-bottom: 15px; text-transform: uppercase; }
-.quick-actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
-.action-btn { padding: 14px; border-radius: 14px; border: 1px solid #e2e8f0; background: white; cursor: pointer; font-weight: 700; text-align: left; transition: all 0.2s; }
-.action-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
-.action-btn.primary { background: #2563eb; color: white; border: none; }
-.action-btn.primary:hover { background: #1d4ed8; }
-.recent-activity { padding: 20px; }
+.dashboard { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+
+.db-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.db-title { font-size: 1.6rem; font-weight: 900; color: var(--cs-text-primary); }
+.gradient-text { background: var(--cs-gradient-brand); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.db-subtitle { font-size: 0.85rem; color: var(--cs-text-muted); margin-top: 2px; }
+
+.date-badge {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--cs-bg-primary); padding: 8px 16px;
+  border-radius: var(--cs-radius-full); font-size: 0.8rem;
+  color: var(--cs-text-secondary); font-weight: 600;
+  border: 1px solid var(--cs-border-soft);
+}
+
+/* KPIs */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+.kpi-card {
+  background: var(--cs-bg-primary); border: 1px solid var(--cs-border-soft);
+  border-radius: var(--cs-radius-lg); padding: 20px;
+  display: flex; align-items: center; gap: 16px;
+  box-shadow: var(--cs-shadow-sm); transition: all var(--cs-transition);
+}
+.kpi-card:hover { box-shadow: var(--cs-shadow-md); transform: translateY(-2px); }
+.kpi-alert { border-left: 3px solid var(--cs-warning); }
+
+.kpi-icon {
+  width: 48px; height: 48px; border-radius: var(--cs-radius-lg);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.kpi-blue   { background: rgba(99,102,241,0.1); color: var(--cs-brand-500); }
+.kpi-green  { background: rgba(22,163,106,0.1);  color: var(--cs-success); }
+.kpi-purple { background: rgba(147,51,234,0.1);  color: #9333ea; }
+.kpi-orange { background: rgba(234,88,12,0.1);   color: #ea580c; }
+
+.kpi-label { font-size: var(--cs-text-xs); color: var(--cs-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.kpi-value { font-size: 1.3rem; font-weight: 900; color: var(--cs-text-primary); margin-top: 2px; }
+.text-danger { color: var(--cs-error) !important; }
+
+/* Content Grid */
+.content-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
+
+.quick-panel, .recent-panel {
+  background: var(--cs-bg-primary); border: 1px solid var(--cs-border-soft);
+  border-radius: var(--cs-radius-lg); padding: 20px;
+  box-shadow: var(--cs-shadow-sm);
+}
+
+.panel-title { font-size: 0.75rem; color: var(--cs-text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 16px; }
+
+.quick-actions { display: grid; gap: 8px; }
+
+.qa-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-radius: var(--cs-radius-md);
+  border: 1px solid var(--cs-border-soft); background: var(--cs-bg-secondary);
+  cursor: pointer; font-weight: 600; font-size: 0.85rem;
+  color: var(--cs-text-primary); transition: all var(--cs-transition);
+  text-align: left; font-family: var(--cs-font-sans);
+}
+.qa-btn:hover { background: var(--cs-bg-tertiary); border-color: var(--cs-border-medium); transform: translateY(-1px); }
+.qa-btn.qa-primary { background: var(--cs-gradient-brand); color: white; border: none; box-shadow: 0 4px 12px rgba(79,70,229,0.25); }
+.qa-btn.qa-primary:hover { box-shadow: 0 6px 16px rgba(79,70,229,0.35); }
+
 .table-wrapper { overflow-x: auto; }
-.db-table { width: 100%; border-collapse: collapse; min-width: 400px; }
-.db-table th { text-align: left; font-size: 0.75rem; color: #64748b; text-transform: uppercase; padding: 10px 8px; border-bottom: 2px solid #f1f5f9; }
-.db-table td { padding: 14px 8px; border-bottom: 1px solid #f8fafc; font-size: 0.9rem; }
-.text-truncate { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.loader-container { padding: 60px; text-align: center; color: #64748b; }
-.spinner { border: 3px solid #f3f3f3; border-top: 3px solid #2563eb; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
-.warning-border { border-left: 4px solid #ea580c; }
-.text-danger { color: #ef4444; font-weight: bold; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.db-table { width: 100%; border-collapse: collapse; }
+.db-table th { text-align: left; font-size: 0.7rem; color: var(--cs-text-muted); text-transform: uppercase; padding: 10px 8px; border-bottom: 2px solid var(--cs-border-soft); font-weight: 700; }
+.db-table td { padding: 12px 8px; border-bottom: 1px solid var(--cs-border-soft); font-size: 0.85rem; }
+.td-num { color: var(--cs-text-muted); font-size: 0.8rem; }
+.td-name { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.td-total { font-weight: 800; color: var(--cs-text-primary); }
+.empty-row { text-align: center; color: var(--cs-text-muted); font-size: 0.8rem; padding: 24px !important; }
+
+.loader-box { text-align: center; padding: 60px; color: var(--cs-text-muted); }
+.spinner-lg { border: 3px solid var(--cs-border-soft); border-top: 3px solid var(--cs-brand-500); border-radius: 50%; width: 36px; height: 36px; animation: cs-spin 1s linear infinite; margin: 0 auto 16px; }
 
 @media (max-width: 900px) {
-  .charts-section { display: flex; flex-direction: column-reverse; }
-  .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .content-grid { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 500px) {
+  .kpi-grid { grid-template-columns: 1fr; }
 }
 </style>

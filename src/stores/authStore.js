@@ -24,6 +24,11 @@ export const useAuthStore = defineStore('auth', {
           
           if (error) console.error("⚠️ Error buscando datos de empresa:", error);
           this.empresa = data || null;
+          
+          // Guardar en localStorage para compatibilidad con data.js
+          localStorage.setItem("contasoft_user_sesion", JSON.stringify({ empresa_id: this.user.id }));
+        } else {
+          localStorage.removeItem("contasoft_user_sesion");
         }
       } catch (err) {
         console.error("Error en fetchSession:", err);

@@ -2,7 +2,7 @@
   <div class="page-factura">
     <header class="header-factura">
       <button @click="router.back()" class="btn-volver">← Cancelar</button>
-      <h1>Nueva Factura</h1>
+      <h1>Nuevo Presupuesto</h1>
       <div class="nro-comprobante">Borrador: #{{ new Date().getFullYear() }}-{{ Math.floor(Math.random() * 1000) }}</div>
     </header>
 
@@ -13,9 +13,9 @@
           <div class="cliente-selector">
             <div v-if="clienteSeleccionado" class="cliente-card animate-fade">
               <div class="info">
-                <span class="label">Facturando a:</span>
+                <span class="label">Presupuestando a:</span>
                 <h3>{{ clienteSeleccionado.nombre }}</h3>
-                <p>{{ clienteSeleccionado.nro_documento }} | {{ clienteSeleccionado.email || 'Sin email' }} | {{ clienteSeleccionado.telefono || 'Sin teléfono' }}</p>
+                <p>{{ clienteSeleccionado.nro_documento }} | {{ clienteSeleccionado.email || 'Sin email' }}</p>
               </div>
               <button @click="clienteSeleccionado = null" class="btn-cambiar">Cambiar Cliente</button>
             </div>
@@ -38,7 +38,7 @@
         </div>
 
         <div class="card-glass items-section">
-          <h2 class="section-title">2. Detalles de la Venta</h2>
+          <h2 class="section-title">2. Detalles del Presupuesto</h2>
           <div class="items-header">
             <span>Concepto / Producto</span>
             <span>Cant.</span>
@@ -58,26 +58,25 @@
         <div class="card-glass resumen-pago">
           <h2 class="section-title">Resumen</h2>
           <div class="total-box">
-            <p>TOTAL A COBRAR</p>
+            <p>TOTAL PRESUPUESTO</p>
             <h2 class="monto-total">${{ totalFactura.toLocaleString() }}</h2>
           </div>
 
           <div class="metodo-pago">
-            <label>Condición de Venta</label>
-            <select v-model="condicionVenta" class="select-pro">
-              <option value="Contado">Efectivo / Contado</option>
-              <option value="Transferencia">Transferencia Bancaria</option>
-              <option value="Tarjeta">Tarjeta Débito/Crédito</option>
-              <option value="Cuenta Corriente">Cuenta Corriente (Deuda)</option>
+            <label>Validez de Oferta</label>
+            <select v-model="validez" class="select-pro">
+              <option value="15">15 Días</option>
+              <option value="30">30 Días</option>
+              <option value="60">60 Días</option>
             </select>
           </div>
 
           <button 
-            @click="confirmarVenta" 
+            @click="confirmarPresupuesto" 
             class="btn-confirmar" 
             :disabled="!clienteSeleccionado || guardandoVenta"
           >
-            {{ guardandoVenta ? 'Procesando...' : '🚀 Confirmar y Emitir' }}
+            {{ guardandoVenta ? 'Procesando...' : '📄 Guardar Presupuesto' }}
           </button>
         </div>
       </div>
@@ -86,34 +85,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { getClienteById, getClientes } from '@/services/data';
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { supabase } from '@/supabase';
 
-const route = useRoute();
 const router = useRouter();
 
 // ESTADOS
 const clienteSeleccionado = ref(null);
 const busquedaCliente = ref('');
 const sugerenciasClientes = ref([]);
-const condicionVenta = ref('Contado');
+const validez = ref('15');
 const guardandoVenta = ref(false);
 
-// ITEM TEMPORAL (Para que el código funcione ya mismo)
 const itemManual = ref({ desc: '', cant: 1, precio: 0 });
 const totalFactura = computed(() => itemManual.value.cant * itemManual.value.precio);
 
-onMounted(async () => {
-  const idViaUrl = route.query.clienteId;
-  if (idViaUrl && idViaUrl !== "undefined") {
-    const data = await getClienteById(idViaUrl);
-    if (data) clienteSeleccionado.value = data;
-  }
-});
-
-// BUSCADOR DE CLIENTES REAL
 async function buscarClientes() {
   if (busquedaCliente.value.length < 2) {
     sugerenciasClientes.value = [];
@@ -133,61 +120,32 @@ function seleccionarCliente(cliente) {
   busquedaCliente.value = '';
 }
 
-async function confirmarVenta() {
+async function confirmarPresupuesto() {
   if (!clienteSeleccionado.value) return alert("Debes seleccionar un cliente");
   if (totalFactura.value <= 0) return alert("El total debe ser mayor a 0");
 
   guardandoVenta.value = true;
   
   try {
-    // 1. Guardar Factura
-    const { data: nuevaFactura, error: errorFactura } = await supabase
-      .from('facturas')
-      .insert([{
-        cliente_id: clienteSeleccionado.value.id,
-        cliente_nombre: clienteSeleccionado.value.nombre,
-        total: totalFactura.value,
-        condicion_venta: condicionVenta.value,
-        estado: 'EMITIDA',
-        fecha: new Date().toISOString()
-      }])
-      .select().single();
+    const nuevoPresupuesto = {
+      id: Date.now(),
+      numero: Math.floor(Math.random() * 10000).toString(),
+      cliente_nombre: clienteSeleccionado.value.nombre,
+      total: totalFactura.value,
+      fecha: new Date().toISOString()
+    };
 
-    if (errorFactura) throw errorFactura;
+    const saved = localStorage.getItem('contasoft_presupuestos');
+    let presupuestos = saved ? JSON.parse(saved) : [];
+    presupuestos.push(nuevoPresupuesto);
+    localStorage.setItem('contasoft_presupuestos', JSON.stringify(presupuestos));
 
-    // 2. Lógica Contable (Caja o Cta Cte)
-    if (condicionVenta.value === 'Cuenta Corriente') {
-      await supabase.from('movimientos_cuentas').insert([{
-        cliente_id: clienteSeleccionado.value.id,
-        factura_id: nuevaFactura.id,
-        monto: totalFactura.value,
-        impacto: '+',
-        detalle: `Factura #${nuevaFactura.id.toString().slice(-5)}` 
-      }]);
-    } else {
-      await supabase.from('caja_movimientos').insert([{
-        tipo: 'ingreso',
-        monto: totalFactura.value,
-        concepto: `Venta Factura #${nuevaFactura.id.toString().slice(-5)}`,
-        categoria: 'Ventas',
-        metodo_pago: condicionVenta.value,
-        cliente_id: clienteSeleccionado.value.id
-      }]);
-    }
-
-    // --- EL WHATSAPP VA AQUÍ ADENTRO ---
-    alert("🚀 ¡Venta registrada con éxito!");
-    
-    const enviar = confirm("¿Deseas enviar el comprobante por WhatsApp al cliente?");
-    if (enviar) {
-      enviarResumenWhatsApp(nuevaFactura, clienteSeleccionado.value);
-    }
-
-    router.push('/facturacion');
+    alert("✅ Presupuesto guardado con éxito!");
+    router.push('/presupuestos');
 
   } catch (error) {
     console.error("Error fatal:", error);
-    alert("Error al procesar la venta. Revisa la consola.");
+    alert("Error al procesar. Revisa la consola.");
   } finally {
     guardandoVenta.value = false;
   }
@@ -195,7 +153,6 @@ async function confirmarVenta() {
 </script>
 
 <style scoped>
-/* (Se mantienen tus estilos y agregamos los de buscador) */
 .buscador-cliente { position: relative; }
 .sugerencias { 
   position: absolute; width: 100%; background: white; border: 1px solid #e2e8f0; 
@@ -224,9 +181,8 @@ async function confirmarVenta() {
 .total-box { text-align: center; background: #f8fafc; padding: 25px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
 .monto-total { font-size: 2.8rem; font-weight: 900; color: #2563eb; margin: 0; }
 
-/* Estilos de tabla de items */
 .items-header { display: grid; grid-template-columns: 1fr 80px 120px 100px; gap: 15px; font-weight: 800; font-size: 0.75rem; color: #94a3b8; margin-bottom: 15px; }
 .item-row { display: grid; grid-template-columns: 1fr 80px 120px 100px; gap: 15px; align-items: center; }
-.item-row input { padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.9rem; }
+.item-row input, .select-pro { padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.9rem; width: 100%; }
 .subtotal-item { font-weight: 800; text-align: right; color: #1e293b; }
 </style>

@@ -1,8 +1,12 @@
 <template>
-  <div class="page no-print">
-    <div class="card-glass header-section">
-      <h1>Gestión de Cobranzas</h1>
-      <select v-model="clienteSeleccionado" @change="cargarDatos" class="select-cliente">
+  <div>
+    <div class="page no-print">
+      <div class="card-glass header-section">
+      <h1 class="page-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        Cuentas Corrientes
+      </h1>
+      <select v-model="clienteSeleccionado" @change="cargarDatos" class="cs-input mt-4">
         <option value="">Seleccione un cliente...</option>
         <option v-for="c in clientes" :key="c.id" :value="c.id">{{ c.nombre }}</option>
       </select>
@@ -10,18 +14,38 @@
 
     <div v-if="clienteSeleccionado" class="dashboard-grid">
       <aside class="actions-sidebar">
-        <div class="card-glass accent-green">
-          <h3>📥 Nuevo Recibo</h3>
+        <!-- Totales Card -->
+        <div class="card-glass balance-summary" :class="saldoTotal > 0 ? 'deuda' : 'favor'">
+          <h3 class="title-card">Estado de Cuenta</h3>
+          <div class="summary-item">
+            <span>Debe (Facturado)</span>
+            <span class="font-mono txt-red">${{ totalDebe.toLocaleString() }}</span>
+          </div>
+          <div class="summary-item">
+            <span>Haber (Pagos+Cheques)</span>
+            <span class="font-mono txt-green">-${{ totalHaber.toLocaleString() }}</span>
+          </div>
+          <div class="summary-total">
+            <span>Saldo Total</span>
+            <strong class="font-mono">${{ Math.abs(saldoTotal).toLocaleString() }}</strong>
+            <span class="status-pill" :class="saldoTotal > 0 ? 'error' : 'success'">
+              {{ saldoTotal > 0 ? 'DEUDOR' : 'A FAVOR' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="card-glass accent-green mt-20">
+          <h3 class="title-card">📥 Nuevo Recibo</h3>
           <div class="form-group">
-            <input type="number" v-model.number="pagoTotal" class="input-moderno" placeholder="Monto total $">
-            <select v-model="metodo" class="input-moderno">
+            <input type="number" v-model.number="pagoTotal" class="cs-input" placeholder="Monto total $">
+            <select v-model="metodo" class="cs-input">
               <option value="Contado">💵 Contado</option>
               <option value="Transferencia">🏦 Transferencia</option>
             </select>
             <div class="info-imputacion">
               <p>A abonar: <strong>${{ totalSeleccionado.toLocaleString() }}</strong></p>
             </div>
-            <button @click="generarCobro" class="btn-confirmar" :disabled="pagoTotal <= 0 || enviando">
+            <button @click="generarCobro" class="cs-btn cs-btn-primary" style="width: 100%" :disabled="pagoTotal <= 0 || enviando">
               {{ enviando ? 'Procesando...' : 'Cobrar e Imprimir' }}
             </button>
           </div>
@@ -30,46 +54,58 @@
 
       <main class="table-container">
         <div class="card-glass">
-          <h3>📄 Facturas Pendientes</h3>
-          <table class="simple-table">
+          <h3 class="title-card">📄 Facturas Pendientes</h3>
+          <table class="table-moderna">
             <thead>
               <tr>
                 <th>Sel.</th>
                 <th>Fecha</th>
                 <th>Nro</th>
-                <th>Total</th>
+                <th class="text-right">Total</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="f in facturasPendientes" :key="f.id">
                 <td><input type="checkbox" :value="f" v-model="facturasAbonadas"></td>
                 <td>{{ new Date(f.fecha).toLocaleDateString() }}</td>
-                <td>{{ f.numero }}</td>
-                <td>${{ f.total.toLocaleString() }}</td>
+                <td class="font-mono">{{ f.numero }}</td>
+                <td class="text-right font-mono font-bold">${{ f.total.toLocaleString() }}</td>
+              </tr>
+              <tr v-if="facturasPendientes.length === 0">
+                <td colspan="4" class="text-center" style="color: var(--cs-text-muted)">Sin facturas pendientes.</td>
               </tr>
             </tbody>
           </table>
         </div>
 
+        <!-- MOVIMIENTOS HISTÓRICOS -->
         <div class="card-glass mt-20">
-          <h3>history Recibos Emitidos</h3>
-          <table class="simple-table">
+          <h3 class="title-card">history Movimientos (Recibos y Cheques)</h3>
+          <table class="table-moderna">
             <thead>
               <tr>
                 <th>Fecha</th>
-                <th>Monto</th>
-                <th>Método</th>
+                <th>Tipo</th>
+                <th>Detalle</th>
+                <th class="text-right">Monto (Haber)</th>
                 <th>Acción</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="r in historialRecibos" :key="r.id">
-                <td>{{ new Date(r.fecha).toLocaleDateString() }}</td>
-                <td>${{ r.monto.toLocaleString() }}</td>
-                <td>{{ r.metodo_pago }}</td>
+              <tr v-for="m in historialMovimientos" :key="m.id">
+                <td>{{ new Date(m.fecha).toLocaleDateString() }}</td>
                 <td>
-                  <button @click="reimprimirRecibo(r)" class="btn-reimprimir">🖨️ Reimprimir</button>
+                  <span class="tipo-tag" :class="m.tipo === 'RECIBO' ? 'rec' : 'cheque'">{{ m.tipo }}</span>
                 </td>
+                <td style="font-size: 0.85rem">{{ m.detalle }}</td>
+                <td class="text-right font-mono txt-green font-bold">${{ m.monto.toLocaleString() }}</td>
+                <td>
+                  <button v-if="m.tipo === 'RECIBO'" @click="reimprimirRecibo(m.original)" class="cs-btn cs-btn-sm cs-btn-secondary">🖨️ Reimprimir</button>
+                  <span v-else style="font-size: 0.7rem; color: var(--cs-text-muted)">{{ m.original.estado }}</span>
+                </td>
+              </tr>
+              <tr v-if="historialMovimientos.length === 0">
+                <td colspan="5" class="text-center" style="color: var(--cs-text-muted)">Sin movimientos registrados.</td>
               </tr>
             </tbody>
           </table>
@@ -121,6 +157,7 @@
       </div>
     </div>
   </div>
+  </div>
 </template>
 
 <script setup>
@@ -132,7 +169,8 @@ const clientes = ref([]);
 const clienteSeleccionado = ref('');
 const facturasPendientes = ref([]);
 const facturasAbonadas = ref([]);
-const historialRecibos = ref([]);
+const historialMovimientos = ref([]); // Recibos + Cheques
+const facturasTotales = ref([]); // Para calculo de deuda
 const pagoTotal = ref(0);
 const metodo = ref('Contado');
 const enviando = ref(false);
@@ -141,19 +179,49 @@ const reciboActivo = ref(null);
 const clienteNombre = computed(() => clientes.value.find(c => c.id === clienteSeleccionado.value)?.nombre || '');
 const totalSeleccionado = computed(() => facturasAbonadas.value.reduce((acc, f) => acc + f.total, 0));
 
+// Lógica de totales
+const totalDebe = computed(() => facturasTotales.value.reduce((acc, f) => acc + Number(f.total || 0), 0));
+const totalHaber = computed(() => historialMovimientos.value.reduce((acc, m) => acc + Number(m.monto || 0), 0));
+const saldoTotal = computed(() => totalDebe.value - totalHaber.value);
+
 onMounted(async () => {
   clientes.value = await getClientes();
 });
 
 async function cargarDatos() {
   if (!clienteSeleccionado.value) return;
-  const [fData, rData] = await Promise.all([
+  const clienteData = clientes.value.find(c => c.id === clienteSeleccionado.value);
+  
+  const [fData, rData, cData] = await Promise.all([
     getFacturasCliente(clienteSeleccionado.value),
-    supabase.from('pagos_cuentas').select('*').eq('cliente_id', clienteSeleccionado.value).order('fecha', { ascending: false })
+    supabase.from('pagos_cuentas').select('*').eq('cliente_id', clienteSeleccionado.value).order('fecha', { ascending: false }),
+    // Buscar cheques emitidos por este cliente (usando el nombre porque así lo guardamos)
+    supabase.from('cheques').select('*').ilike('emisor', `%${clienteData.nombre}%`)
   ]);
   
+  facturasTotales.value = fData || [];
   facturasPendientes.value = fData.filter(f => f.estado !== 'Pagada');
-  historialRecibos.value = rData.data || [];
+  
+  // Unir recibos y cheques
+  const recibos = (rData.data || []).map(r => ({
+    id: r.id,
+    fecha: r.fecha,
+    tipo: 'RECIBO',
+    detalle: `Recibo de Pago - ${r.metodo_pago}`,
+    monto: r.monto,
+    original: r
+  }));
+  
+  const cheques = (cData.data || []).map(c => ({
+    id: c.id,
+    fecha: c.fecha_recepcion || c.created_at,
+    tipo: 'CHEQUE',
+    detalle: `Cheque #${c.numero} - ${c.banco}`,
+    monto: Number(c.monto),
+    original: c
+  }));
+  
+  historialMovimientos.value = [...recibos, ...cheques].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 }
 
 async function generarCobro() {
@@ -204,22 +272,33 @@ function limpiar() {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.dashboard-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; margin-top: 20px; }
-.card-glass { background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
+.page { padding: 20px; max-width: 1400px; margin: 0 auto; }
+.dashboard-grid { display: grid; grid-template-columns: 320px 1fr; gap: 24px; margin-top: 24px; }
+.header-section { margin-bottom: 24px; }
 .mt-20 { margin-top: 20px; }
-.input-moderno { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd; }
-.btn-confirmar { width: 100%; background: #1e293b; color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-.btn-reimprimir { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-.simple-table { width: 100%; border-collapse: collapse; }
-.simple-table th, .simple-table td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+.mt-4 { margin-top: 16px; }
+
+/* Totales / Balance Summary */
+.balance-summary { border-top: 4px solid var(--cs-brand-500); }
+.balance-summary.deuda { border-top-color: var(--cs-error); }
+.balance-summary.favor { border-top-color: var(--cs-success); }
+.summary-item { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.85rem; color: var(--cs-text-secondary); }
+.summary-total { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--cs-border-soft); }
+.summary-total span:first-child { font-size: 0.8rem; font-weight: 700; color: var(--cs-text-muted); text-transform: uppercase; }
+.summary-total strong { font-size: 2rem; color: var(--cs-text-primary); }
+
+.info-imputacion { margin: 12px 0; font-size: 0.85rem; color: var(--cs-text-secondary); text-align: center; }
+
+.tipo-tag { padding: 3px 8px; border-radius: var(--cs-radius-full); font-size: 0.65rem; font-weight: 800; color: white; text-transform: uppercase; }
+.rec { background: var(--cs-success); }
+.cheque { background: var(--cs-brand-500); }
+
 /* --- ESTILOS CRÍTICOS DE IMPRESIÓN --- */
 @media screen {
   .only-print { display: none !important; }
 }
 
 @media print {
-  /* 1. Ocultar TODO el sitio (incluyendo menús, headers y overlays) */
   html, body, #app, #layout-wrapper, .menu-lateral, .header-principal, .no-print, nav, aside {
     display: none !important;
     height: 0 !important;
@@ -227,7 +306,6 @@ function limpiar() {
     padding: 0 !important;
   }
   
-  /* 2. Mostrar ÚNICAMENTE el contenedor del recibo */
   .only-print, .only-print * {
     display: block !important;
     visibility: visible !important;
@@ -242,7 +320,6 @@ function limpiar() {
     padding: 0 !important;
   }
 
-  /* 3. Estética del Recibo */
   .recibo-box {
     border: 1.5px solid #000;
     padding: 40px;
