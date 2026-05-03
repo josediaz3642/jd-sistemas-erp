@@ -129,6 +129,11 @@ export async function getStockItems() {
   return data;
 }
 
+export async function getCategorias() {
+  const { data } = await supabase.from('categorias').select('*');
+  return data || [];
+}
+
 export async function getStockById(id) {
   if (!id || id === 'nuevo') return null;
   const { data, error } = await supabase.from('stock').select('*').eq('id', id).single();
