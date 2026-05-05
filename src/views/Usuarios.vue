@@ -24,6 +24,9 @@
           <div class="user-info">
             <h3>{{ user.nombre }}</h3>
             <span class="user-email">{{ user.email }}</span>
+            <span v-if="esSuperAdmin && user.empresa_nombre" style="display:block; font-size:0.7rem; color: var(--cs-brand-500); margin-top: 2px;">
+              🏢 {{ user.empresa_nombre }}
+            </span>
           </div>
           <span class="role-badge" :class="getRolColor(user.rol)">{{ user.rol }}</span>
         </div>
@@ -41,7 +44,10 @@
             <span class="estado-dot"></span>
             {{ user.estado || 'activo' }}
           </span>
-          <button @click="editarUsuario(user)" class="btn-editar">Editar</button>
+          <div style="display: flex; gap: 8px;">
+            <button @click="editarUsuario(user)" class="btn-editar">Editar</button>
+            <button v-if="esSuperAdmin" @click="eliminarUsuario(user.id)" class="btn-editar btn-eliminar">Eliminar</button>
+          </div>
         </div>
       </div>
 
@@ -143,9 +149,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { supabase } from '@/supabase';
 import { getEmpresaId } from '@/services/data';
+import { useAuthStore } from '@/stores/authStore';
+
+const authStore = useAuthStore();
+const esSuperAdmin = computed(() => authStore.user?.email === 'josediaz3642@gmail.com');
 
 const mostrarModal = ref(false);
 const listaUsuarios = ref([]);
@@ -173,10 +183,39 @@ function getRolColor(rol) {
 
 async function cargarUsuarios() {
   try {
-    const { data } = await supabase.from('usuarios').select('*').eq('empresa_id', getEmpresaId());
-    listaUsuarios.value = data || [];
+    let query = supabase.from('usuarios').select('*');
+    if (!esSuperAdmin.value) {
+      query = query.eq('empresa_id', getEmpresaId());
+    }
+    const { data: usersData } = await query;
+    
+    if (esSuperAdmin.value && usersData) {
+      const { data: empresasData } = await supabase.from('empresas').select('id, razon_social');
+      const empMap = {};
+      if (empresasData) {
+        empresasData.forEach(e => empMap[e.id] = e.razon_social);
+      }
+      listaUsuarios.value = usersData.map(u => ({
+        ...u,
+        empresa_nombre: empMap[u.empresa_id] || 'S/D'
+      }));
+    } else {
+      listaUsuarios.value = usersData || [];
+    }
   } catch (e) {
     console.error('Error cargando usuarios:', e);
+  }
+}
+
+async function eliminarUsuario(id) {
+  if (!confirm("¿Estás seguro de eliminar este usuario? Esto no se puede deshacer.")) return;
+  try {
+    const { error } = await supabase.from('usuarios').delete().eq('id', id);
+    if (error) throw error;
+    alert("Usuario eliminado correctamente.");
+    cargarUsuarios();
+  } catch (e) {
+    alert("Error al eliminar usuario: " + e.message);
   }
 }
 
@@ -196,6 +235,7 @@ async function guardarUsuario() {
       const { error } = await supabase.from('usuarios').insert([{
         nombre: nuevo.value.nombre,
         email: nuevo.value.email,
+        password: nuevo.value.password,
         rol: nuevo.value.rol,
         accesos: nuevo.value.accesos,
         estado: 'activo',
@@ -273,6 +313,8 @@ onMounted(cargarUsuarios);
 .estado-inactivo .estado-dot { background: var(--cs-text-muted); }
 .btn-editar { background: none; border: 1px solid var(--cs-border-medium); color: var(--cs-text-secondary); padding: 4px 10px; border-radius: var(--cs-radius-sm); font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all var(--cs-transition-fast); }
 .btn-editar:hover { background: var(--cs-bg-secondary); color: var(--cs-text-primary); }
+.btn-eliminar { color: var(--cs-error); border-color: rgba(239, 68, 68, 0.3); }
+.btn-eliminar:hover { background: rgba(239, 68, 68, 0.1); color: var(--cs-error); border-color: var(--cs-error); }
 
 .empty-card { grid-column: 1 / -1; text-align: center; padding: 60px; color: var(--cs-text-muted); }
 .empty-card p { margin-top: 12px; font-size: 0.85rem; }

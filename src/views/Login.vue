@@ -42,7 +42,15 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
               {{ errorMsg }}
             </div>
+            <div v-else-if="successMsg" class="success-msg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              {{ successMsg }}
+            </div>
           </transition>
+
+          <div class="forgot-pass-wrap">
+            <a href="#" @click.prevent="olvideContrasena" class="forgot-pass-link">¿Olvidaste tu contraseña?</a>
+          </div>
 
           <button type="submit" class="btn-submit" :disabled="cargando">
             <span v-if="cargando" class="spinner-sm"></span>
@@ -70,10 +78,12 @@ const router = useRouter();
 const authStore = useAuthStore();
 const cargando = ref(false);
 const errorMsg = ref('');
+const successMsg = ref('');
 const loginForm = ref({ email: '', password: '' });
 
 const handleLogin = async () => {
   errorMsg.value = '';
+  successMsg.value = '';
   if (!loginForm.value.email || !loginForm.value.password) return;
   try {
     cargando.value = true;
@@ -81,6 +91,25 @@ const handleLogin = async () => {
     router.push('/dashboard'); 
   } catch (err) {
     errorMsg.value = "Credenciales incorrectas o error de conexión.";
+  } finally {
+    cargando.value = false;
+  }
+};
+
+const olvideContrasena = async () => {
+  errorMsg.value = '';
+  successMsg.value = '';
+  if (!loginForm.value.email) {
+    errorMsg.value = 'Ingresá tu email para recuperar la contraseña.';
+    return;
+  }
+  try {
+    cargando.value = true;
+    const { error } = await authStore.resetPassword(loginForm.value.email);
+    if (error) throw error;
+    successMsg.value = 'Te enviamos un email con las instrucciones.';
+  } catch (err) {
+    errorMsg.value = 'Error al intentar recuperar la contraseña.';
   } finally {
     cargando.value = false;
   }
@@ -273,6 +302,23 @@ const handleLogin = async () => {
   font-size: 0.8rem;
   color: var(--cs-text-muted) !important;
   font-weight: 500 !important;
+}
+
+.forgot-pass-wrap { text-align: right; margin-top: -10px; margin-bottom: 5px; }
+.forgot-pass-link { font-size: 0.75rem; color: var(--cs-brand-500); font-weight: 600; text-decoration: none; }
+.forgot-pass-link:hover { text-decoration: underline; }
+
+.success-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  padding: 10px 14px;
+  border-radius: var(--cs-radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
 .fade-enter-active, .fade-leave-active { transition: all 0.3s ease; }

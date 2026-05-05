@@ -2,11 +2,12 @@
   <div class="page-container">
     <div class="card-glass">
       <div class="print-only-header">
-        <div class="header-content">
+        <div class="header-content" v-if="authStore.empresa">
           <div class="empresa-info">
-            <h1>JD SISTEMASINFORMÁTICOS</h1>
-            <p>Soluciones en IT y Desarrollo Web</p>
-            <p>Dirección de tu empresa | Tel: 1234-5678</p>
+            <img v-if="authStore.empresa.logo" :src="authStore.empresa.logo" style="max-height: 50px; margin-bottom: 5px;" />
+            <h1>{{ authStore.empresa.razon_social }}</h1>
+            <p>CUIT: {{ authStore.empresa.cuit || 'S/D' }}</p>
+            <p>{{ authStore.empresa.direccion || '' }} | Tel: {{ authStore.empresa.telefono || 'S/D' }}</p>
           </div>
           <div class="remito-titulo">
             <h2>REMITO</h2>
@@ -135,9 +136,11 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { saveRemito, buscarProductoPorCodigo, getRemitoById, registrarMovimientoCaja } from '@/services/data';
+import { useAuthStore } from '@/stores/authStore';
 
 const router = useRouter();
 const route = useRoute();
+const authStore = useAuthStore();
 const cargando = ref(false);
 const busqueda = ref("");
 const resultados = ref([]);

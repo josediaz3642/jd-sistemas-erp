@@ -1,0 +1,28 @@
+# Solución al Error 403 (Forbidden) al crear Proveedores
+
+El error `403 Forbidden` al crear un proveedor significa que la base de datos de Supabase está bloqueando la inserción por una política de Row Level Security (RLS). 
+
+Para solucionarlo, debes ejecutar el siguiente comando SQL en tu panel de Supabase (sección **SQL Editor**):
+
+```sql
+-- 1. Habilitar RLS en la tabla proveedores (por seguridad)
+ALTER TABLE proveedores ENABLE ROW LEVEL SECURITY;
+
+-- 2. Eliminar cualquier política anterior que pueda estar causando conflicto
+DROP POLICY IF EXISTS "Permitir todo a usuarios autenticados" ON proveedores;
+
+-- 3. Crear una nueva política que permita todas las acciones (Insert, Select, Update, Delete)
+CREATE POLICY "Permitir todo a usuarios autenticados" 
+ON proveedores 
+FOR ALL 
+USING (true)
+WITH CHECK (true);
+```
+
+### ¿Por qué ocurre este error?
+Cuando se habilita RLS en una tabla de Supabase, por defecto todas las operaciones (lectura, escritura, borrado) están bloqueadas. Se debe crear explícitamente una "Policy" (política) que le diga a Supabase "permite que los usuarios inserten datos". El comando de arriba crea exactamente esa política.
+
+---
+
+### NOTA SOBRE LAS IMÁGENES DE PERFIL
+En la sección "Mi Perfil" se agregó el botón para subir la imagen de perfil. La imagen se guarda localmente en el navegador por ahora. Si deseas que las imágenes se guarden en la nube para todos los dispositivos, necesitarás crear un "Storage Bucket" en Supabase llamado `avatars` y lo implementaremos en la próxima sesión.

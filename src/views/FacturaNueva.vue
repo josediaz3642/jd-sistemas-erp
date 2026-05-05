@@ -88,7 +88,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getClienteById, getClientes } from '@/services/data';
+import { getClienteById, getClientes, getEmpresaId } from '@/services/data';
 import { supabase } from '@/supabase';
 
 const route = useRoute();
@@ -122,6 +122,7 @@ async function buscarClientes() {
   const { data } = await supabase
     .from('clientes')
     .select('*')
+    .eq('empresa_id', getEmpresaId())
     .ilike('nombre', `%${busquedaCliente.value}%`)
     .limit(5);
   sugerenciasClientes.value = data || [];
@@ -144,6 +145,7 @@ async function confirmarVenta() {
     const { data: nuevaFactura, error: errorFactura } = await supabase
       .from('facturas')
       .insert([{
+        empresa_id: getEmpresaId(),
         cliente_id: clienteSeleccionado.value.id,
         cliente_nombre: clienteSeleccionado.value.nombre,
         total: totalFactura.value,
@@ -158,6 +160,7 @@ async function confirmarVenta() {
     // 2. Lógica Contable (Caja o Cta Cte)
     if (condicionVenta.value === 'Cuenta Corriente') {
       await supabase.from('movimientos_cuentas').insert([{
+        empresa_id: getEmpresaId(),
         cliente_id: clienteSeleccionado.value.id,
         factura_id: nuevaFactura.id,
         monto: totalFactura.value,
@@ -166,6 +169,7 @@ async function confirmarVenta() {
       }]);
     } else {
       await supabase.from('caja_movimientos').insert([{
+        empresa_id: getEmpresaId(),
         tipo: 'ingreso',
         monto: totalFactura.value,
         concepto: `Venta Factura #${nuevaFactura.id.toString().slice(-5)}`,

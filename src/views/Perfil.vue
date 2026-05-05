@@ -9,7 +9,15 @@
 
     <div class="perfil-grid">
       <section class="perfil-section card-glass text-center">
-        <div class="avatar-large">{{ initials }}</div>
+        <div class="avatar-large" :style="perfil.avatar ? `background-image: url(${perfil.avatar}); background-size: cover; background-position: center; color: transparent;` : ''">
+          {{ !perfil.avatar ? initials : '' }}
+        </div>
+        <div style="margin-bottom: 15px;">
+           <label class="cs-btn cs-btn-secondary" style="cursor:pointer; font-size: 0.75rem; padding: 6px 12px;">
+             📸 Subir Imagen
+             <input type="file" style="display:none;" accept="image/*" @change="subirAvatar" />
+           </label>
+        </div>
         <h3 class="user-name-large">{{ user?.email?.split('@')[0] || 'Usuario' }}</h3>
         <p class="user-email-text">{{ user?.email }}</p>
         <span class="role-badge">Super Admin</span>
@@ -36,6 +44,16 @@
             <label>Biografía Breve</label>
             <textarea v-model="perfil.biografia" rows="3" placeholder="Cuéntanos un poco sobre ti y tu negocio..."></textarea>
           </div>
+          <div class="field full" style="margin-top: 10px;">
+            <label>Seguridad</label>
+            <div style="display: flex; gap: 10px;">
+              <input v-model="nuevaContrasena" type="password" placeholder="Nueva contraseña (mín. 6 caracteres)" style="flex:1;">
+              <button @click="cambiarContrasena" class="cs-btn cs-btn-secondary" :disabled="guardandoPass">
+                {{ guardandoPass ? 'Actualizando...' : 'Cambiar Contraseña' }}
+              </button>
+            </div>
+            <p v-if="msgPass" :style="{ color: passExito ? '#16a34a' : '#ef4444', fontSize: '0.75rem', marginTop: '5px' }">{{ msgPass }}</p>
+          </div>
         </div>
       </section>
     </div>
@@ -51,15 +69,21 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
+import { supabase } from '@/supabase';
 
 const authStore = useAuthStore();
 const guardando = ref(false);
+const guardandoPass = ref(false);
+const nuevaContrasena = ref('');
+const msgPass = ref('');
+const passExito = ref(false);
 
 const perfil = ref({
   nombre_completo: '',
   telefono: '',
   cargo: '',
-  biografia: ''
+  biografia: '',
+  avatar: ''
 });
 
 const user = computed(() => authStore.user);
@@ -87,6 +111,39 @@ const guardarCambios = () => {
     guardando.value = false;
     alert("¡Perfil guardado correctamente!");
   }, 600);
+};
+
+const subirAvatar = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    perfil.value.avatar = e.target.result;
+    guardarCambios();
+  };
+  reader.readAsDataURL(file);
+};
+
+const cambiarContrasena = async () => {
+  msgPass.value = '';
+  if (nuevaContrasena.value.length < 6) {
+    passExito.value = false;
+    msgPass.value = 'La contraseña debe tener al menos 6 caracteres.';
+    return;
+  }
+  guardandoPass.value = true;
+  try {
+    const { error } = await supabase.auth.updateUser({ password: nuevaContrasena.value });
+    if (error) throw error;
+    passExito.value = true;
+    msgPass.value = 'Contraseña actualizada correctamente.';
+    nuevaContrasena.value = '';
+  } catch (e) {
+    passExito.value = false;
+    msgPass.value = e.message || 'Error al actualizar la contraseña.';
+  } finally {
+    guardandoPass.value = false;
+  }
 };
 </script>
 

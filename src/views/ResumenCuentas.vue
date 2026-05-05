@@ -163,7 +163,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { supabase } from "@/supabase";
-import { getClientes, getFacturasCliente, registrarMovimientoCaja } from '@/services/data';
+import { getClientes, getFacturasCliente, registrarMovimientoCaja, getEmpresaId } from '@/services/data';
 
 const clientes = ref([]);
 const clienteSeleccionado = ref('');
@@ -196,7 +196,7 @@ async function cargarDatos() {
     getFacturasCliente(clienteSeleccionado.value),
     supabase.from('pagos_cuentas').select('*').eq('cliente_id', clienteSeleccionado.value).order('fecha', { ascending: false }),
     // Buscar cheques emitidos por este cliente (usando el nombre porque así lo guardamos)
-    supabase.from('cheques').select('*').ilike('emisor', `%${clienteData.nombre}%`)
+    supabase.from('cheques').select('*').eq('empresa_id', getEmpresaId()).ilike('emisor', `%${clienteData.nombre}%`)
   ]);
   
   facturasTotales.value = fData || [];

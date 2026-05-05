@@ -5,9 +5,13 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
     empresa: null,
-    loading: true
+    loading: true,
+    mobileMenuOpen: false
   }),
   actions: {
+    toggleMobileMenu() {
+      this.mobileMenuOpen = !this.mobileMenuOpen;
+    },
     // --- 1. VERIFICAR SESIÓN ACTIVA ---
     async fetchSession() {
       this.loading = true;
@@ -23,7 +27,35 @@ export const useAuthStore = defineStore('auth', {
             .maybeSingle(); 
           
           if (error) console.error("⚠️ Error buscando datos de empresa:", error);
-          this.empresa = data || null;
+          
+          if (!data) {
+            // Primer login, crear empresa
+            const newEmpresa = {
+              id: this.user.id,
+              razon_social: this.user.user_metadata?.nombre || 'Mi Empresa',
+              cuit: '00000000000',
+              condicion_iva: 'Responsable Inscripto'
+            };
+            const { error: insErr } = await supabase.from('empresas').insert([newEmpresa]);
+            if (insErr) console.error("⚠️ Error al crear perfil de empresa:", insErr);
+            this.empresa = newEmpresa;
+            
+            // Crear registro en la tabla de usuarios públicos para que aparezca en el listado
+            const newUsuario = {
+              id: this.user.id,
+              nombre: this.user.user_metadata?.nombre || 'Dueño/Admin',
+              email: this.user.email,
+              password: 'login-via-auth',
+              rol: 'admin',
+              empresa_id: this.user.id,
+              estado: 'activo',
+              accesos: ['Dashboard', 'Ventas', 'Stock', 'Clientes', 'Proveedores', 'Remitos', 'Cheques', 'Caja', 'Reportes', 'Ajustes']
+            };
+            await supabase.from('usuarios').insert([newUsuario]);
+            
+          } else {
+            this.empresa = data;
+          }
           
           // Guardar en localStorage para compatibilidad con data.js
           localStorage.setItem("contasoft_user_sesion", JSON.stringify({ empresa_id: this.user.id }));
@@ -58,21 +90,15 @@ export const useAuthStore = defineStore('auth', {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: { nombre }
+        }
       });
 
       if (error) throw error;
-
-      // 2. Creación de empresa vinculada
-      if (data.user) {
-        const { error: empError } = await supabase.from('empresas').insert([{
-          id: data.user.id,
-          razon_social: nombre,
-          cuit: '00000000000',
-          condicion_iva: 'Responsable Inscripto'
-        }]);
-
-        if (empError) console.error("⚠️ Error al crear perfil de empresa:", empError);
-      }
+      
+      // Ya no insertamos en empresas aquí, porque sin confirmar el email no hay sesión 
+      // y daría error 401 por RLS. Se creará automáticamente en fetchSession() al loguearse.
 
       await this.fetchSession();
     },
@@ -84,6 +110,14 @@ export const useAuthStore = defineStore('auth', {
       this.empresa = null;
       localStorage.removeItem("contasoft_user_sesion");
       // Opcional: router.push('/login')
+    },
+
+    // --- 5. RECUPERAR CONTRASEÑA ---
+    async resetPassword(email) {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/perfil',
+      });
+      return { data, error };
     }
   }
 });

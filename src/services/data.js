@@ -71,6 +71,12 @@ export async function saveCliente(c) {
   return data;
 }
 
+export async function deleteCliente(id) {
+  const { error } = await supabase.from('clientes').delete().eq('id', id);
+  if (error) throw error;
+  return true;
+}
+
 // --- 4. FACTURACIÓN ---
 export async function getFacturas() {
   const { data } = await supabase.from('facturas').select('*').eq('empresa_id', getEmpresaId()).order('fecha', { ascending: false });
@@ -124,13 +130,13 @@ export async function saveFactura(f) {
 
 // --- 5. STOCK ---
 export async function getStockItems() {
-  const { data, error } = await supabase.from('stock').select('*').order('nombre', { ascending: true });
+  const { data, error } = await supabase.from('stock').select('*').eq('empresa_id', getEmpresaId()).order('nombre', { ascending: true });
   if (error) throw error;
   return data;
 }
 
 export async function getCategorias() {
-  const { data } = await supabase.from('categorias').select('*');
+  const { data } = await supabase.from('categorias').select('*').eq('empresa_id', getEmpresaId());
   return data || [];
 }
 
@@ -149,13 +155,13 @@ export async function saveStockItem(i) {
 }
 
 export async function buscarProductoPorCodigo(codigo) {
-  const { data } = await supabase.from('stock').select('*').ilike('codigo', `%${codigo}%`).limit(5);
+  const { data } = await supabase.from('stock').select('*').eq('empresa_id', getEmpresaId()).ilike('codigo', `%${codigo}%`).limit(5);
   return data || [];
 }
 
 // --- 6. REMITOS ---
 export async function getRemitos() {
-  const { data, error } = await supabase.from('remitos').select('*').order('fecha', { ascending: false });
+  const { data, error } = await supabase.from('remitos').select('*').eq('empresa_id', getEmpresaId()).order('fecha', { ascending: false });
   if (error) throw error;
   return data;
 }
@@ -227,6 +233,12 @@ export async function saveProveedor(p) {
   } else {
     return await supabase.from('proveedores').update(payload).eq('id', p.id).select();
   }
+}
+
+export async function deleteProveedor(id) {
+  const { error } = await supabase.from('proveedores').delete().eq('id', id);
+  if (error) throw error;
+  return true;
 }
 
 // --- 8. CAJA Y MÉTRICAS ---

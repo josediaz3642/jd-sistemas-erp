@@ -96,9 +96,10 @@
           <span>Mi Perfil</span>
         </router-link>
 
-        <router-link to="/usuarios" class="nav-link" @click="sidebarOpen = false">
+        <router-link v-if="esSuperAdmin" to="/usuarios" class="nav-link" @click="sidebarOpen = false">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <span>Usuarios y Roles</span>
+          <span class="nav-badge">Super Admin</span>
         </router-link>
 
         <router-link v-if="esSuperAdmin" to="/admin/suscripciones" class="nav-link" @click="sidebarOpen = false">
@@ -144,18 +145,22 @@ import LogoContasoft from '@/components/LogoContasoft.vue';
 
 const authStore = useAuthStore();
 const router = useRouter();
-const sidebarOpen = ref(false);
+
+const sidebarOpen = computed({
+  get: () => authStore.mobileMenuOpen,
+  set: (val) => authStore.mobileMenuOpen = val
+});
 
 const esAdmin = computed(() => {
   return authStore.user?.app_metadata?.role === 'admin' || true;
 });
 
 const esSuperAdmin = computed(() => {
-  return true; // Acceso temporal habilitado para el usuario
+  return authStore.user?.email === 'josediaz3642@gmail.com';
 });
 
 const toggleSidebar = () => {
-  sidebarOpen.value = !sidebarOpen.value;
+  authStore.toggleMobileMenu();
 };
 
 const handleLogout = async () => {
@@ -376,7 +381,11 @@ const handleLogout = async () => {
 /* --- Mobile --- */
 @media (max-width: 768px) {
   .btn-hamburguesa { display: flex; align-items: center; justify-content: center; }
-  .sidebar { transform: translateX(-100%); }
+  .sidebar { 
+    transform: translateX(-100%); 
+    width: 280px;
+    max-width: 80vw;
+  }
   .sidebar.is-open { transform: translateX(0); }
   .overlay {
     position: fixed;

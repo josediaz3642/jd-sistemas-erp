@@ -197,8 +197,13 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll));
   flex-direction: column;
   padding: 16px 32px 24px;
   gap: 4px;
-  background: rgba(10, 14, 39, 0.95);
-  border-top: 1px solid rgba(255,255,255,0.06);
+  background: rgba(10, 14, 39, 0.98);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
 .mobile-dropdown a {

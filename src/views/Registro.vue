@@ -78,18 +78,20 @@ async function onRegister() {
     return;
   }
   cargando.value = true;
+  msg.value = 'Enviando...';
   try {
     await authStore.register(email.value, password.value, nombre.value);
     
     // Verificar si se inició sesión automáticamente o requiere confirmación
     if (authStore.user) {
-      msg.value = '¡Cuenta creada! Redirigiendo al dashboard...';
+      msg.value = '¡Usuario creado correctamente! Redirigiendo al dashboard...';
       setTimeout(() => router.push('/dashboard'), 2000);
     } else {
-      msg.value = '¡Cuenta creada con éxito! Por favor verifica tu correo electrónico para poder iniciar sesión.';
+      msg.value = 'Usuario creado correctamente por favor confirmar e mail';
       setTimeout(() => router.push('/login'), 4000);
     }
   } catch (e) {
+    msg.value = '';
     if (e.message.includes('already registered')) {
       error.value = 'Este correo ya está registrado.';
     } else {

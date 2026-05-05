@@ -134,6 +134,15 @@ export const useSubscriptionStore = defineStore('subscription', {
         .update({ precio_mensual: precio })
         .eq('id', subId);
       await this.fetchAllSuscripciones();
+    },
+
+    // Admin: eliminar suscripcion
+    async deleteSuscripcion(subId) {
+      await supabase
+        .from('suscripciones')
+        .delete()
+        .eq('id', subId);
+      await this.fetchAllSuscripciones();
     }
   }
 });

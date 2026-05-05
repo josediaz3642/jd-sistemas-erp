@@ -88,6 +88,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { supabase } from '@/supabase';
+import { getEmpresaId } from '@/services/data';
 
 const router = useRouter();
 
@@ -109,6 +110,7 @@ async function buscarClientes() {
   const { data } = await supabase
     .from('clientes')
     .select('*')
+    .eq('empresa_id', getEmpresaId())
     .ilike('nombre', `%${busquedaCliente.value}%`)
     .limit(5);
   sugerenciasClientes.value = data || [];
@@ -131,14 +133,17 @@ async function confirmarPresupuesto() {
       id: Date.now(),
       numero: Math.floor(Math.random() * 10000).toString(),
       cliente_nombre: clienteSeleccionado.value.nombre,
+      cliente_telefono: clienteSeleccionado.value.telefono || '',
       total: totalFactura.value,
-      fecha: new Date().toISOString()
+      fecha: new Date().toISOString(),
+      items: [{...itemManual.value}]
     };
 
-    const saved = localStorage.getItem('contasoft_presupuestos');
+    const key = `contasoft_presupuestos_${getEmpresaId()}`;
+    const saved = localStorage.getItem(key);
     let presupuestos = saved ? JSON.parse(saved) : [];
     presupuestos.push(nuevoPresupuesto);
-    localStorage.setItem('contasoft_presupuestos', JSON.stringify(presupuestos));
+    localStorage.setItem(key, JSON.stringify(presupuestos));
 
     alert("✅ Presupuesto guardado con éxito!");
     router.push('/presupuestos');

@@ -1,9 +1,12 @@
 <template>
   <div class="page">
-    <div class="card-glass header">
+    <div class="card-glass header" style="display: flex; justify-content: space-between;">
       <h1>
         {{ isNuevo ? "Nuevo Proveedor" : "Editar Proveedor" }}
       </h1>
+      <button v-if="!isNuevo && esSuperAdmin" @click="eliminarProveedorActual" class="btn" style="background: #ef4444; color: white;">
+        Eliminar
+      </button>
     </div>
 
     <div class="card-glass content-form">
@@ -47,8 +50,11 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-// Asegúrate de que data.js tenga estos exports
-import { getProveedorById, saveProveedor } from "@/services/data";
+import { getProveedorById, saveProveedor, deleteProveedor } from "@/services/data";
+import { useAuthStore } from '@/stores/authStore';
+
+const authStore = useAuthStore();
+const esSuperAdmin = computed(() => authStore.user?.email === 'josediaz3642@gmail.com');
 
 const route = useRoute();
 const router = useRouter();
@@ -95,6 +101,17 @@ async function guardar() {
     console.error(e);
   } finally {
     guardando.value = false;
+  }
+}
+
+async function eliminarProveedorActual() {
+  if (!confirm("¿Seguro que deseas eliminar este proveedor? Se perderán sus datos.")) return;
+  try {
+    await deleteProveedor(route.params.id);
+    alert("Proveedor eliminado");
+    router.push("/proveedores");
+  } catch (e) {
+    alert("Error al eliminar. Puede tener compras asociadas.");
   }
 }
 
